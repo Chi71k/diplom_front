@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../../context/useAuth'
 import { useToast } from '../../context/ToastContext'
 import { apiGetProfile, apiUpdateProfile, apiDeleteProfile, apiGetMyInterests } from '../../api'
@@ -46,16 +46,14 @@ const Profile = () => {
         avatarUrl: profile.avatarUrl || '',
       })
       apiGetMyInterests()
-        .then((interestsData) => setInterests(interestsData.items ?? []))
-        .catch(() => toast.error('Failed to load interests'))
+        .then((d) => setInterests(d.items ?? []))
+        .catch(() => {})
     } else {
       load()
     }
   }, [])
 
-  useEffect(() => {
-    setAvatarError(false)
-  }, [profile?.avatarUrl])
+  useEffect(() => { setAvatarError(false) }, [profile?.avatarUrl])
 
   const handleSave = async (e) => {
     e.preventDefault()
@@ -63,8 +61,8 @@ const Profile = () => {
     try {
       const body = {}
       if (form.firstName !== (profile?.firstName ?? '')) body.firstName = form.firstName
-      if (form.lastName !== (profile?.lastName ?? '')) body.lastName = form.lastName
-      if (form.bio !== (profile?.bio ?? '')) body.bio = form.bio
+      if (form.lastName  !== (profile?.lastName  ?? '')) body.lastName  = form.lastName
+      if (form.bio       !== (profile?.bio       ?? '')) body.bio       = form.bio
       if (form.avatarUrl !== (profile?.avatarUrl ?? '')) body.avatarUrl = form.avatarUrl
       const data = await apiUpdateProfile(body)
       setProfile(data)
@@ -78,10 +76,7 @@ const Profile = () => {
   }
 
   const handleDeleteAccount = async () => {
-    if (!deleteConfirm) {
-      setDeleteConfirm(true)
-      return
-    }
+    if (!deleteConfirm) { setDeleteConfirm(true); return }
     setSaving(true)
     try {
       await apiDeleteProfile()
@@ -96,168 +91,154 @@ const Profile = () => {
   }
 
   const initial = (profile?.firstName?.[0] || profile?.email?.[0] || '?').toUpperCase()
-  const showAvatarImage = profile?.avatarUrl && !avatarError
+  const showAvatar = profile?.avatarUrl && !avatarError
 
-  if (loading) {
-    return (
-      <div className="page-content">
-        <div className="profile-loading">Loading profile...</div>
-      </div>
-    )
-  }
+  if (loading) return <div className="loading-state">Loading profile...</div>
 
   if (loadError && !profile) {
     return (
-      <div className="page-content">
-        <div className="profile-card">
-          <div className="auth-error">{loadError}</div>
+      <div className="profile-page">
+        <div className="card" style={{ padding: '24px', textAlign: 'center' }}>
+          <div className="auth-error" style={{ marginBottom: '16px' }}>{loadError}</div>
           <button onClick={load} className="btn btn-primary">Try again</button>
         </div>
       </div>
     )
   }
 
-  if (!profile) {
-    return (
-      <div className="page-content">
-        <div className="profile-card">You are not signed in.</div>
-      </div>
-    )
-  }
+  if (!profile) return <div className="empty-state">You are not signed in.</div>
 
   return (
-    <div className="page-content">
-      <header className="page-header">
-        <h1 className="page-title">Your profile</h1>
-        <p className="page-subtitle">Manage your study profile and preferences</p>
-      </header>
+    <div className="profile-page">
+      {/* Cover + head */}
+      <div className="profile-cover" />
+      <div className="card profile-head-card">
+        <div className="profile-ava-row">
+          <div className="profile-ava">
+            {showAvatar
+              ? <img src={profile.avatarUrl} alt="" onError={() => setAvatarError(true)} />
+              : initial
+            }
+          </div>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => setEditing(true)}
+          >
+            Edit profile
+          </button>
+        </div>
+        <div className="profile-name">{profile.firstName} {profile.lastName}</div>
+        <div className="profile-subtitle">{profile.email}</div>
+        {profile.bio && <div className="profile-loc" style={{ marginTop: '8px', fontSize: '13px', color: 'var(--muted)', lineHeight: 1.5 }}>{profile.bio}</div>}
 
-      <section className="profile-card profile-summary">
-        <div className="profile-summary-left">
-          {showAvatarImage ? (
-            <img
-              src={profile.avatarUrl}
-              alt=""
-              className="profile-summary-avatar"
-              onError={() => setAvatarError(true)}
-              onLoad={() => setAvatarError(false)}
-            />
-          ) : (
-            <div className="profile-summary-avatar-initial">{initial}</div>
-          )}
-          <div>
-            <h2 className="profile-summary-name">{profile.firstName} {profile.lastName}</h2>
-            <p className="profile-summary-email">{profile.email}</p>
-            {!profile.avatarUrl && (
-              <p className="profile-avatar-hint">Add a photo via URL. Click Edit and paste an image link.</p>
-            )}
+        <div className="profile-stats-row">
+          <div className="profile-stat">
+            <div className="profile-stat-val">{interests.length}</div>
+            <div className="profile-stat-lbl">Interests</div>
+          </div>
+          <div className="profile-stat">
+            <div className="profile-stat-val">
+              <Link to="/courses" style={{ color: 'inherit' }}>Courses</Link>
+            </div>
+            <div className="profile-stat-lbl"><Link to="/courses" style={{ color: 'var(--muted)' }}>View</Link></div>
+          </div>
+          <div className="profile-stat">
+            <div className="profile-stat-val">
+              <Link to="/matching/partners" style={{ color: 'inherit' }}>Partners</Link>
+            </div>
+            <div className="profile-stat-lbl"><Link to="/matching/partners" style={{ color: 'var(--muted)' }}>View</Link></div>
           </div>
         </div>
-      </section>
+      </div>
 
-      <section className="profile-card">
-        <h3 className="profile-card-title">Basic information</h3>
-        {editing ? (
-          <form onSubmit={handleSave} className="profile-form">
+      {/* Edit form */}
+      {editing && (
+        <div className="card p-section" style={{ marginTop: '14px' }}>
+          <div className="p-section-head">
+            <span className="p-section-title">Edit profile</span>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditing(false)}>Cancel</button>
+          </div>
+          <form onSubmit={handleSave} className="profile-form p-section-body">
             <label className="profile-label">First name</label>
-            <input
-              className="profile-input"
-              value={form.firstName}
+            <input className="profile-input" value={form.firstName}
               onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
-              placeholder="First name"
-              required
-            />
+              placeholder="First name" required />
             <label className="profile-label">Last name</label>
-            <input
-              className="profile-input"
-              value={form.lastName}
+            <input className="profile-input" value={form.lastName}
               onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
-              placeholder="Last name"
-              required
-            />
+              placeholder="Last name" required />
             <label className="profile-label">Bio</label>
-            <textarea
-              className="profile-input profile-textarea"
-              value={form.bio}
+            <textarea className="profile-input profile-textarea" value={form.bio}
               onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
-              placeholder="Tell us about yourself and your study goals"
-              rows={4}
-            />
+              placeholder="Tell us about your study goals" rows={3} />
             <label className="profile-label">Profile photo URL</label>
-            <input
-              className="profile-input"
-              type="url"
-              value={form.avatarUrl}
+            <input className="profile-input" type="url" value={form.avatarUrl}
               onChange={(e) => setForm((f) => ({ ...f, avatarUrl: e.target.value }))}
-              placeholder="https://example.com/photo.jpg"
-            />
-            <p className="profile-field-hint">Use a direct link to an image (URL that opens the image only).</p>
+              placeholder="https://example.com/photo.jpg" />
+            <p className="profile-field-hint">Paste a direct link to an image file.</p>
             <div className="profile-form-actions">
               <button type="submit" className="btn btn-primary" disabled={saving}>
-                {saving ? 'Saving...' : 'Save'}
+                {saving ? 'Saving...' : 'Save changes'}
               </button>
               <button type="button" className="btn btn-secondary" onClick={() => setEditing(false)}>
                 Cancel
               </button>
             </div>
           </form>
-        ) : (
-          <>
-            <div className="profile-info-row">
-              <span className="profile-label">First name</span>
-              <span className="profile-value">{profile.firstName}</span>
-            </div>
-            <div className="profile-info-row">
-              <span className="profile-label">Last name</span>
-              <span className="profile-value">{profile.lastName}</span>
-            </div>
-            <div className="profile-info-row">
-              <span className="profile-label">Email</span>
-              <span className="profile-value">{profile.email}</span>
-            </div>
-            {profile.bio && (
-              <div className="profile-info-row profile-info-bio">
-                <span className="profile-label">Bio</span>
-                <span className="profile-value">{profile.bio}</span>
-              </div>
-            )}
-            <button type="button" className="btn btn-primary btn-sm" onClick={() => setEditing(true)}>
-              Edit
-            </button>
-          </>
-        )}
-      </section>
-
-      {interests.length > 0 && (
-        <section className="profile-card">
-          <h3 className="profile-card-title">Interests</h3>
-          <div className="interests-grid" style={{marginTop: '8px'}}>
-            {interests.map((interest) => (
-              <span key={interest.ID} className="interest-chip selected" style={{cursor: 'default', pointerEvents: 'none'}}>
-                {interest.Name}
-              </span>
-            ))}
-          </div>
-        </section>
+        </div>
       )}
 
-      <section className="profile-card profile-danger-card">
-        <h3 className="profile-card-title">Delete account</h3>
-        <p className="profile-danger-text">Once deleted, your data cannot be recovered.</p>
-        <button
-          type="button"
-          className="btn btn-danger"
-          onClick={handleDeleteAccount}
-          disabled={saving}
-        >
-          {deleteConfirm ? 'Click again to confirm' : 'Delete account'}
-        </button>
-        {deleteConfirm && (
-          <button type="button" className="btn btn-ghost" onClick={() => setDeleteConfirm(false)}>
-            Cancel
-          </button>
-        )}
-      </section>
+      {/* Interests section */}
+      {interests.length > 0 && (
+        <div className="card p-section" style={{ marginTop: '14px' }}>
+          <div className="p-section-head">
+            <span className="p-section-title">Interests</span>
+            <Link to="/interests" className="btn btn-ghost btn-sm">Edit</Link>
+          </div>
+          <div className="p-section-body">
+            <div className="chips-row">
+              {interests.map((i) => (
+                <span key={i.ID} className="chip chip-int">{i.Name}</span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {interests.length === 0 && (
+        <div className="card p-section" style={{ marginTop: '14px' }}>
+          <div className="p-section-head">
+            <span className="p-section-title">Interests</span>
+          </div>
+          <div className="p-section-body">
+            <p className="page-muted" style={{ fontSize: '13px' }}>
+              No interests added yet.{' '}
+              <Link to="/interests" style={{ color: 'var(--primary)' }}>Add interests</Link> to improve your match score.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Danger zone */}
+      <div className="card p-section profile-danger-card" style={{ marginTop: '14px' }}>
+        <div className="p-section-head">
+          <span className="p-section-title">Danger zone</span>
+        </div>
+        <div className="p-section-body">
+          <p className="profile-danger-text">Once deleted, your data cannot be recovered.</p>
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <button type="button" className="btn btn-danger" onClick={handleDeleteAccount} disabled={saving}>
+              {deleteConfirm ? 'Click again to confirm' : 'Delete account'}
+            </button>
+            {deleteConfirm && (
+              <button type="button" className="btn btn-ghost" onClick={() => setDeleteConfirm(false)}>
+                Cancel
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

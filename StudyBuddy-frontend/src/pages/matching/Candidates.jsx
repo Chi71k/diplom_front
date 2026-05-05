@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react'
 import { useToast } from '../../context/ToastContext'
 import { apiGetCandidates, apiSendMatchRequest } from '../../api'
 
-const scoreColor = (score) => {
-  if (score >= 0.7) return '#15803d'
-  if (score >= 0.4) return '#d97706'
-  return '#94a3b8'
+const matchClass = (score) => {
+  if (score >= 0.7) return 'match-green'
+  if (score >= 0.4) return 'match-amber'
+  return 'match-gray'
 }
+
+const avatarBg = 'linear-gradient(135deg,#60a5fa 0%,#3b82f6 100%)'
 
 const Candidates = () => {
   const toast = useToast()
@@ -14,6 +16,7 @@ const Candidates = () => {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(null)
   const [messages, setMessages] = useState({})
+  const [openMsg, setOpenMsg] = useState(null)
 
   useEffect(() => {
     const load = async () => {
@@ -34,8 +37,9 @@ const Candidates = () => {
     setSending(userId)
     try {
       await apiSendMatchRequest(userId, messages[userId] || '')
-      toast.success('Match request sent!')
+      toast.success('Request sent!')
       setCandidates((prev) => prev.filter((c) => c.userId !== userId))
+      setOpenMsg(null)
     } catch (e) {
       toast.error(e.error || 'Failed to send request')
     } finally {
@@ -44,92 +48,88 @@ const Candidates = () => {
   }
 
   return (
-    <div className="page-content">
-      <header className="page-header">
-        <h1 className="page-title">Find study partners</h1>
-        <p className="page-subtitle">
-          Ranked by shared interests (40%), availability (40%), and courses (20%)
-        </p>
-      </header>
+    <div className="find-page">
+      <div className="card">
+        <div className="find-header">
+          <div>
+            <div className="find-title">Find study partners</div>
+            <div className="find-sub">Ranked by shared interests (40%), availability (40%), and courses (20%)</div>
+          </div>
+          <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
+            {!loading && `${candidates.length} candidate${candidates.length !== 1 ? 's' : ''}`}
+          </span>
+        </div>
 
-      {loading && <div className="profile-loading">Loading candidates...</div>}
+        {loading && <div className="loading-state">Finding candidates...</div>}
 
-      {!loading && candidates.length === 0 && (
-        <section className="profile-card">
-          <p className="page-muted">
+        {!loading && candidates.length === 0 && (
+          <div className="empty-state">
             No candidates found. Make sure your interests, courses, and availability are filled in.
-          </p>
-        </section>
-      )}
+          </div>
+        )}
 
-      {!loading && candidates.map((c) => (
-        <section key={c.userId} className="profile-card" style={{ marginBottom: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' }}>
-
-            {/* Avatar */}
-            <div
-              style={{
-                width: '48px', height: '48px', borderRadius: '50%', flexShrink: 0,
-                background: 'linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: '#fff', fontWeight: 600, fontSize: '1.1rem', overflow: 'hidden',
-              }}
-            >
-              {c.avatarUrl
-                ? <img src={c.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                : (c.firstName?.[0] || '?').toUpperCase()
-              }
-            </div>
-
-            {/* Info */}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                <strong style={{ fontSize: '1rem', color: '#1e293b' }}>
-                  {c.firstName} {c.lastName}
-                </strong>
-                <span style={{
-                  fontSize: '0.8rem', fontWeight: 700, padding: '2px 8px', borderRadius: '6px',
-                  background: '#f8fafc', border: '1px solid #e2e8f0',
-                  color: scoreColor(c.overallScore),
-                }}>
-                  {Math.round(c.overallScore * 100)}% match
-                </span>
+        {!loading && candidates.map((c) => (
+          <div key={c.userId} className="cand-card">
+            <div className="cand-main">
+              <div className="avatar avatar-md" style={{ background: avatarBg }}>
+                {c.avatarUrl
+                  ? <img src={c.avatarUrl} alt="" />
+                  : (c.firstName?.[0] || '?').toUpperCase()
+                }
               </div>
-              {c.bio && (
-                <p style={{ margin: '6px 0 0', fontSize: '0.875rem', color: '#64748b' }}>{c.bio}</p>
-              )}
-              <div style={{ marginTop: '6px', display: 'flex', gap: '12px', flexWrap: 'wrap', fontSize: '0.8rem', color: '#94a3b8' }}>
-                {c.commonCourses?.length > 0 && (
-                  <span>{c.commonCourses.length} common course{c.commonCourses.length > 1 ? 's' : ''}</span>
-                )}
-                {c.commonSlots?.length > 0 && (
-                  <span>{c.commonSlots.length} common slot{c.commonSlots.length > 1 ? 's' : ''}</span>
+
+              <div className={`match-badge ${matchClass(c.overallScore)}`}>
+                <span className="match-pct">{Math.round(c.overallScore * 100)}%</span>
+                <span className="match-label">match</span>
+              </div>
+
+              <div className="cand-info">
+                <div className="cand-name">{c.firstName} {c.lastName}</div>
+                {c.bio && <div className="cand-bio">{c.bio}</div>}
+
+                <div className="chips-row">
+                  {c.commonSlots?.length > 0 && (
+                    <span className="chip chip-time">
+                      {c.commonSlots.length} common slot{c.commonSlots.length > 1 ? 's' : ''}
+                    </span>
+                  )}
+                  {c.commonCourses?.map((course, i) => (
+                    <span key={i} className="chip chip-course">{course}</span>
+                  ))}
+                </div>
+
+                <div className="cand-actions">
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    disabled={sending === c.userId}
+                    onClick={() => handleSend(c.userId)}
+                  >
+                    {sending === c.userId ? 'Sending...' : 'Connect'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setOpenMsg(openMsg === c.userId ? null : c.userId)}
+                  >
+                    {openMsg === c.userId ? 'Hide message' : 'Add message'}
+                  </button>
+                </div>
+
+                {openMsg === c.userId && (
+                  <input
+                    className="cand-msg-input"
+                    placeholder="Write a short message (optional)..."
+                    value={messages[c.userId] || ''}
+                    onChange={(e) => setMessages((m) => ({ ...m, [c.userId]: e.target.value }))}
+                    maxLength={500}
+                  />
                 )}
               </div>
-            </div>
-
-            {/* Action */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '200px' }}>
-              <input
-                className="profile-input"
-                placeholder="Message (optional)"
-                value={messages[c.userId] || ''}
-                onChange={(e) => setMessages((m) => ({ ...m, [c.userId]: e.target.value }))}
-                maxLength={500}
-              />
-              <button
-                type="button"
-                className="btn btn-primary btn-sm"
-                disabled={sending === c.userId}
-                onClick={() => handleSend(c.userId)}
-              >
-                {sending === c.userId ? 'Sending...' : 'Send request'}
-              </button>
             </div>
           </div>
-        </section>
-      ))}
-
+        ))}
+      </div>
     </div>
   )
 }
