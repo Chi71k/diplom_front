@@ -3,8 +3,7 @@ import { useAuth } from '../../context/useAuth'
 import { useToast } from '../../context/ToastContext'
 import { apiGetMatchRequests, apiGetUserById } from '../../api'
 import { Link } from 'react-router-dom'
-
-const avatarBg = 'linear-gradient(135deg,#60a5fa 0%,#3b82f6 100%)'
+import { avatarColor } from '../../utils/avatar'
 
 const Partners = () => {
   const { profile } = useAuth()
@@ -71,7 +70,7 @@ const Partners = () => {
         {!loading && partners.map(({ request, partner }) => (
           <div key={request.id} className="req-card">
             <div className="req-card-main">
-              <div className="avatar avatar-md" style={{ background: avatarBg }}>
+              <div className="avatar avatar-md" style={{ background: avatarColor(partner.firstName) }}>
                 {partner.avatarUrl
                   ? <img src={partner.avatarUrl} alt="" />
                   : (partner.firstName?.[0] || '?').toUpperCase()

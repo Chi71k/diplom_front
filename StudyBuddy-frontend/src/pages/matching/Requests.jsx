@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react'
 import { useToast } from '../../context/ToastContext'
 import { apiGetMatchRequests, apiRespondMatchRequest, apiCancelMatchRequest, apiGetUserById } from '../../api'
 import { useAuth } from '../../context/useAuth'
+import { avatarColor } from '../../utils/avatar'
 
 const statusColor = { pending: '#d97706', accepted: '#15803d', declined: '#dc2626', canceled: '#94a3b8' }
 const statusLabel = { pending: 'Pending', accepted: 'Accepted', declined: 'Declined', canceled: 'Canceled' }
-const avatarBg = 'linear-gradient(135deg,#60a5fa 0%,#3b82f6 100%)'
 
 const Requests = () => {
   const toast = useToast()
@@ -111,7 +111,7 @@ const Requests = () => {
           return (
             <div key={r.id} className="req-card">
               <div className="req-card-main">
-                <div className="avatar avatar-md" style={{ background: avatarBg }}>
+                <div className="avatar avatar-md" style={{ background: avatarColor(other?.firstName || otherId) }}>
                   {other?.avatarUrl
                     ? <img src={other.avatarUrl} alt="" />
                     : (other?.firstName?.[0] || '?').toUpperCase()

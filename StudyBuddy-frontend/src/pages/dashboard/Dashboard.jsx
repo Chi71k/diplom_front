@@ -1,8 +1,16 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/useAuth'
-import { apiListCourses, apiGetMatchRequests, apiGetCandidates, apiRespondMatchRequest, apiGetMyInterests } from '../../api'
 import { useToast } from '../../context/ToastContext'
+import {
+  apiListCourses, apiGetMatchRequests, apiGetCandidates,
+  apiRespondMatchRequest, apiGetMyInterests, apiGetUserById, apiGetSlots,
+} from '../../api'
+import { avatarColor } from '../../utils/avatar'
+
+// backend returns 0-indexed: 0=Mon, 1=Tue, 2=Wed, 3=Thu, 4=Fri, 5=Sat, 6=Sun
+const DAY_SHORT  = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+const DAY_COLORS = ['#3b82f6','#8b5cf6','#10b981','#f59e0b','#6366f1','#ec4899','#ef4444']
 
 const matchClass = (score) => {
   if (score >= 0.7) return 'match-green'
@@ -10,7 +18,15 @@ const matchClass = (score) => {
   return 'match-gray'
 }
 
-const avatarBg = 'linear-gradient(135deg,#60a5fa 0%,#3b82f6 100%)'
+const Avatar = ({ name, url, size = 'avatar-md' }) => {
+  const letter = (name || '?')[0].toUpperCase()
+  const bg = avatarColor(name)
+  return (
+    <div className={`avatar ${size}`} style={{ background: bg }}>
+      {url ? <img src={url} alt="" /> : letter}
+    </div>
+  )
+}
 
 const Dashboard = () => {
   const { profile } = useAuth()
@@ -18,19 +34,23 @@ const Dashboard = () => {
   const [stats, setStats] = useState({ courses: null, matches: null, pending: null })
   const [candidates, setCandidates] = useState([])
   const [pendingReqs, setPendingReqs] = useState([])
+  const [reqUsers, setReqUsers] = useState({})
   const [interests, setInterests] = useState([])
+  const [slots, setSlots] = useState([])
   const [acting, setActing] = useState(null)
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [coursesData, acceptedData, pendingData, candsData, interestsData] = await Promise.all([
+        const [coursesData, acceptedData, pendingData, candsData, interestsData, slotsData] = await Promise.all([
           apiListCourses({ limit: 100 }),
           apiGetMatchRequests({ status: 'accepted', limit: 100 }),
           apiGetMatchRequests({ status: 'pending', limit: 100 }),
           apiGetCandidates(3),
           apiGetMyInterests(),
+          apiGetSlots(),
         ])
+
         const allCourses = Array.isArray(coursesData) ? coursesData : []
         const myCourses = profile ? allCourses.filter((c) => c.ownerUserId === profile.id) : allCourses
         const accepted = acceptedData.items ?? []
@@ -39,8 +59,24 @@ const Dashboard = () => {
 
         setStats({ courses: myCourses.length, matches: accepted.length, pending: myPending.length })
         setCandidates(candsData.items ?? [])
-        setPendingReqs(myPending.slice(0, 3))
-        setInterests((interestsData.items ?? []).slice(0, 8))
+        setInterests((interestsData.items ?? []).slice(0, 10))
+        setSlots((slotsData.items ?? []).sort((a, b) => a.dayOfWeek - b.dayOfWeek))
+
+        const top = myPending.slice(0, 4)
+        setPendingReqs(top)
+
+        // fetch names for request senders
+        const userResults = await Promise.allSettled(
+          top.map((r) => apiGetUserById(r.requesterId).then((u) => [r.requesterId, u]))
+        )
+        const cache = {}
+        for (const res of userResults) {
+          if (res.status === 'fulfilled') {
+            const [id, user] = res.value
+            cache[id] = user
+          }
+        }
+        setReqUsers(cache)
       } catch {
         // non-critical
       }
@@ -52,7 +88,7 @@ const Dashboard = () => {
     setActing(id)
     try {
       await apiRespondMatchRequest(id, accept)
-      toast.success(accept ? 'Request accepted!' : 'Declined')
+      toast.success(accept ? 'Accepted!' : 'Declined')
       setPendingReqs((prev) => prev.filter((r) => r.id !== id))
       setStats((s) => ({ ...s, pending: Math.max(0, (s.pending ?? 1) - 1) }))
     } catch (e) {
@@ -62,7 +98,6 @@ const Dashboard = () => {
     }
   }
 
-  const firstName = profile?.firstName || 'student'
   const initial = (profile?.firstName?.[0] || '?').toUpperCase()
 
   return (
@@ -73,11 +108,11 @@ const Dashboard = () => {
           <div className="user-card-banner" />
           <div className="user-card-body">
             <div className="user-card-ava-wrap">
-              <div className="user-card-ava" style={{ background: avatarBg }}>
-                {profile?.avatarUrl
-                  ? <img src={profile.avatarUrl} alt="" />
-                  : initial
-                }
+              <div
+                className="user-card-ava"
+                style={{ background: avatarColor(profile?.firstName || profile?.email) }}
+              >
+                {profile?.avatarUrl ? <img src={profile.avatarUrl} alt="" /> : initial}
               </div>
             </div>
             <div className="user-card-name">{profile?.firstName} {profile?.lastName}</div>
@@ -134,9 +169,7 @@ const Dashboard = () => {
 
           {candidates.map((c) => (
             <div key={c.userId} className="rec-card">
-              <div className="avatar avatar-md" style={{ background: avatarBg }}>
-                {c.avatarUrl ? <img src={c.avatarUrl} alt="" /> : (c.firstName?.[0] || '?').toUpperCase()}
-              </div>
+              <Avatar name={c.firstName} url={c.avatarUrl} size="avatar-md" />
               <div className={`match-badge ${matchClass(c.overallScore)}`}>
                 <span className="match-pct">{Math.round(c.overallScore * 100)}%</span>
                 <span className="match-label">match</span>
@@ -160,37 +193,66 @@ const Dashboard = () => {
 
       {/* ── Right: widgets ── */}
       <aside>
-        {/* Pending requests widget */}
+        {/* Incoming requests widget */}
         <div className="card widget">
           <div className="widget-header">
             <span className="widget-title">Incoming requests</span>
-            <Link to="/matching/requests" className="widget-link">View all</Link>
+            <Link to="/matching/requests" className="widget-link">All</Link>
           </div>
 
           {pendingReqs.length === 0
             ? <div className="widget-empty">No pending requests.</div>
-            : pendingReqs.map((r) => (
-                <div key={r.id} className="req-mini">
-                  <div className="avatar avatar-sm" style={{ background: avatarBg }}>?</div>
-                  <div className="req-mini-info">
-                    <div className="req-mini-name">New request</div>
-                    <div className="req-mini-msg">{r.message || 'No message'}</div>
+            : pendingReqs.map((r) => {
+                const u = reqUsers[r.requesterId]
+                const name = u ? `${u.firstName} ${u.lastName}` : '...'
+                return (
+                  <div key={r.id} className="req-mini">
+                    <Avatar name={u?.firstName || r.requesterId} url={u?.avatarUrl} size="avatar-sm" />
+                    <div className="req-mini-info">
+                      <div className="req-mini-name">{name}</div>
+                      <div className="req-mini-msg">{r.message || 'No message'}</div>
+                    </div>
+                    <div className="req-mini-btns">
+                      <button
+                        type="button"
+                        className="req-mini-btn req-mini-accept"
+                        disabled={acting === r.id}
+                        onClick={() => handleRespond(r.id, true)}
+                        title="Accept"
+                      >✓</button>
+                      <button
+                        type="button"
+                        className="req-mini-btn req-mini-decline"
+                        disabled={acting === r.id}
+                        onClick={() => handleRespond(r.id, false)}
+                        title="Decline"
+                      >✕</button>
+                    </div>
                   </div>
-                  <div className="req-mini-btns">
-                    <button
-                      type="button"
-                      className="req-mini-btn req-mini-accept"
-                      disabled={acting === r.id}
-                      onClick={() => handleRespond(r.id, true)}
-                      title="Accept"
-                    >✓</button>
-                    <button
-                      type="button"
-                      className="req-mini-btn req-mini-decline"
-                      disabled={acting === r.id}
-                      onClick={() => handleRespond(r.id, false)}
-                      title="Decline"
-                    >✕</button>
+                )
+              })
+          }
+        </div>
+
+        {/* Schedule widget */}
+        <div className="card widget">
+          <div className="widget-header">
+            <span className="widget-title">My schedule</span>
+            <Link to="/availability" className="widget-link">Edit</Link>
+          </div>
+
+          {slots.length === 0
+            ? <div className="widget-empty">No slots added yet.</div>
+            : slots.map((s) => (
+                <div key={s.id} className="sched-item">
+                  <div
+                    className="sched-dot"
+                    style={{ background: DAY_COLORS[s.dayOfWeek] || '#94a3b8' }}
+                  >
+                    {DAY_SHORT[s.dayOfWeek]}
+                  </div>
+                  <div>
+                    <div className="sched-time">{s.startTime} – {s.endTime}</div>
                   </div>
                 </div>
               ))
@@ -202,7 +264,7 @@ const Dashboard = () => {
           <div className="card widget">
             <div className="widget-header">
               <span className="widget-title">My interests</span>
-              <Link to="/interests" className="widget-link">Edit</Link>
+              <Link to="/interests" className="widget-link">+ Add</Link>
             </div>
             <div className="int-tags">
               {interests.map((i) => (
@@ -211,22 +273,6 @@ const Dashboard = () => {
             </div>
           </div>
         )}
-
-        {/* Quick links widget */}
-        <div className="card widget">
-          <div className="widget-header">
-            <span className="widget-title">Quick links</span>
-          </div>
-          <div style={{ padding: '0 14px 12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            {[
-              ['/availability', 'Set availability'],
-              ['/courses/new', 'Add a course'],
-              ['/matching/partners', 'My partners'],
-            ].map(([to, label]) => (
-              <Link key={to} to={to} className="sidebar-nav-link" style={{ fontSize: '12px' }}>{label}</Link>
-            ))}
-          </div>
-        </div>
       </aside>
     </div>
   )

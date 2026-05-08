@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react'
 import { useToast } from '../../context/ToastContext'
 import { apiGetCandidates, apiSendMatchRequest } from '../../api'
+import { avatarColor } from '../../utils/avatar'
 
 const matchClass = (score) => {
   if (score >= 0.7) return 'match-green'
   if (score >= 0.4) return 'match-amber'
   return 'match-gray'
 }
-
-const avatarBg = 'linear-gradient(135deg,#60a5fa 0%,#3b82f6 100%)'
 
 const Candidates = () => {
   const toast = useToast()
@@ -71,7 +70,7 @@ const Candidates = () => {
         {!loading && candidates.map((c) => (
           <div key={c.userId} className="cand-card">
             <div className="cand-main">
-              <div className="avatar avatar-md" style={{ background: avatarBg }}>
+              <div className="avatar avatar-md" style={{ background: avatarColor(c.firstName) }}>
                 {c.avatarUrl
                   ? <img src={c.avatarUrl} alt="" />
                   : (c.firstName?.[0] || '?').toUpperCase()

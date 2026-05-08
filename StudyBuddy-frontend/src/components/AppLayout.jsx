@@ -34,11 +34,12 @@ export default function AppLayout({ onLogout }) {
 
   return (
     <>
+      {/* Top navbar */}
       <nav className="navbar">
-        <div className="nav-logo">
+        <NavLink to="/dashboard" className="nav-logo" style={{ textDecoration: 'none' }}>
           <div className="nav-logo-icon">SB</div>
-          StudyBuddy
-        </div>
+          <span className="nav-logo-text">StudyBuddy</span>
+        </NavLink>
 
         <div className="nav-links">
           {navItems.map(({ to, label, icon }) => (
@@ -48,27 +49,38 @@ export default function AppLayout({ onLogout }) {
               className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
             >
               {icon}
-              {label}
+              <span className="nav-label">{label}</span>
             </NavLink>
           ))}
         </div>
 
         <button
           type="button"
-          className="nav-link"
-          style={{ marginLeft: '12px' }}
+          className="nav-logout"
           onClick={() => onLogout?.()}
           title="Log out"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
             <polyline points="16 17 21 12 16 7"/>
             <line x1="21" y1="12" x2="9" y2="12"/>
           </svg>
-          <div className="avatar avatar-xs" style={{ background: 'linear-gradient(135deg,#60a5fa,#3b82f6)', fontSize: '10px' }}>
-            {initial}
-          </div>
+          <span className="nav-label">Log out</span>
         </button>
+      </nav>
+
+      {/* Bottom tab bar — visible only on mobile */}
+      <nav className="bottom-nav">
+        {navItems.map(({ to, label, icon }) => (
+          <NavLink
+            key={to}
+            to={to}
+            className={({ isActive }) => `bottom-nav-link${isActive ? ' active' : ''}`}
+          >
+            {icon}
+            <span>{label}</span>
+          </NavLink>
+        ))}
       </nav>
 
       <div className="page-wrap">
