@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"context"
 	"fmt"
 	"studybuddy/backend/services/matching/domain"
 )
@@ -11,7 +12,7 @@ type CancelMatchInput struct {
 }
 
 type CancelMatch interface {
-	Cancel(in CancelMatchInput) error
+	Cancel(ctx context.Context, in CancelMatchInput) error
 }
 
 type cancelMatch struct {
@@ -22,8 +23,8 @@ func NewCancelMatch(repo MatchRepository) CancelMatch {
 	return &cancelMatch{repo: repo}
 }
 
-func (uc *cancelMatch) Cancel(in CancelMatchInput) error {
-	m, err := uc.repo.GetByID(in.MatchID)
+func (uc *cancelMatch) Cancel(ctx context.Context, in CancelMatchInput) error {
+	m, err := uc.repo.GetByID(ctx, in.MatchID)
 	if err != nil {
 		return fmt.Errorf("get match: %w", err)
 	}
@@ -38,7 +39,7 @@ func (uc *cancelMatch) Cancel(in CancelMatchInput) error {
 		return domain.ErrInvalidStatusChange
 	}
 
-	if err := uc.repo.UpdateStatus(m.ID, domain.MatchStatusCanceled); err != nil {
+	if err := uc.repo.UpdateStatus(ctx, m.ID, domain.MatchStatusCanceled); err != nil {
 		return fmt.Errorf("cancel match: %w", err)
 	}
 	return nil

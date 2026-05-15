@@ -17,3 +17,12 @@ func (a JWTAdapter) IssuePair(userID, email string) (access, refresh string, exp
 	}
 	return access, refresh, expAt.Unix(), nil
 }
+
+// ParseRefresh validates a refresh token and extracts user info.
+func (a JWTAdapter) ParseRefresh(token string) (userID, email string, err error) {
+	claims, err := auth.ValidateRefresh(a.Config.Secret, token)
+	if err != nil {
+		return "", "", err
+	}
+	return claims.UserID, claims.Email, nil
+}

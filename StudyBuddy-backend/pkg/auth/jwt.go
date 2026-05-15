@@ -12,11 +12,15 @@ var (
 	ErrInvalidToken = errors.New("invalid token")
 )
 
+// RoleService is the internal service caller role (see MintServiceToken).
+const RoleService = "service"
+
 // Claims holds JWT claims (access or refresh).
 type Claims struct {
 	jwt.RegisteredClaims
 	UserID    string `json:"uid"`
 	Email     string `json:"email"`
+	Role      string `json:"role,omitempty"`
 	IsRefresh bool   `json:"refresh,omitempty"`
 }
 
@@ -68,6 +72,24 @@ func IssuePair(cfg Config, userID, email string) (access, refresh string, expAt 
 		return "", "", time.Time{}, err
 	}
 	return access, refresh, expAt, nil
+}
+
+// MintServiceToken issues a short-lived JWT for trusted internal service-to-service calls.
+// Subject is "service" and role is RoleService; it must not be used as an end-user session.
+func MintServiceToken(secret []byte) (string, error) {
+	now := time.Now()
+	exp := now.Add(30 * time.Second)
+	c := Claims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   "service",
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(exp),
+			ID:        uuid.New().String(),
+		},
+		Role: RoleService,
+	}
+	tok := jwt.NewWithClaims(jwt.SigningMethodHS256, &c)
+	return tok.SignedString(secret)
 }
 
 // ValidateAccess parses the token and returns claims if it's a valid access token.

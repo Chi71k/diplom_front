@@ -13,6 +13,7 @@ import (
 	"studybuddy/backend/pkg/db"
 	pkggcal "studybuddy/backend/pkg/gcal"
 	"studybuddy/backend/services/availability/delivery"
+	availgcal "studybuddy/backend/services/availability/gcal"
 	"studybuddy/backend/services/availability/repository"
 	"studybuddy/backend/services/availability/usecase"
 )
@@ -43,6 +44,7 @@ func main() {
 	}
 
 	dsn := getEnv("DATABASE_URL", "postgres://studybuddy:studybuddy@localhost:5432/studybuddy?sslmode=disable")
+	pointsServiceURL := getEnv("POINTS_SERVICE_URL", "")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -56,11 +58,14 @@ func main() {
 	slotRepo := repository.NewPgSlotRepository(pool)
 	gcalRepo := repository.NewPgGCalRepository(pool, encKey)
 
-	gcalProvider := pkggcal.New(pkggcal.Config{
+	baseGCal := pkggcal.New(pkggcal.Config{
 		ClientID:     gcalClientID,
 		ClientSecret: gcalClientSecret,
 		RedirectURL:  gcalRedirectURL,
 	})
+	gcalProvider := &availgcal.CalendarProvider{Provider: baseGCal}
+
+	sessionRepo := repository.NewPgSessionRepository(pool)
 
 	// ── use cases ─────────────────────────────────────────────────────────────
 	listSlotsUC := usecase.NewListSlots(slotRepo)
@@ -69,6 +74,11 @@ func main() {
 	gcalConnectUC := usecase.NewGCalConnect(gcalProvider, gcalRepo, stateKey)
 	gcalImportUC := usecase.NewGCalImport(gcalProvider, gcalRepo, slotRepo)
 	gcalDisconnectUC := usecase.NewGCalDisconnect(gcalRepo, slotRepo)
+	proposeSessionUC := usecase.NewProposeSession(sessionRepo, gcalProvider, gcalRepo)
+	confirmSessionUC := usecase.NewConfirmSession(sessionRepo, gcalProvider, gcalRepo, pointsServiceURL, []byte(jwtSecret))
+	cancelSessionUC := usecase.NewCancelSession(sessionRepo, gcalProvider, gcalRepo)
+	listSessionsUC := usecase.NewListMySessions(sessionRepo)
+	getSessionUC := usecase.NewGetSession(sessionRepo)
 
 	// ── handler + router ─────────────────────────────────────────────────────
 	handler := &delivery.AvailabilityHandler{
@@ -78,6 +88,11 @@ func main() {
 		GCalConnect:    gcalConnectUC,
 		GCalImport:     gcalImportUC,
 		GCalDisconnect: gcalDisconnectUC,
+		ProposeSession: proposeSessionUC,
+		ConfirmSession: confirmSessionUC,
+		CancelSession:  cancelSessionUC,
+		ListMySessions: listSessionsUC,
+		GetSession:     getSessionUC,
 	}
 	router := delivery.NewRouter(handler, []byte(jwtSecret))
 

@@ -1,5 +1,7 @@
 package usecase
 
+import "context"
+
 type DeleteCourseInput struct {
 	ID             string
 	RequestingUser string // for ownership check (JWT)
@@ -7,5 +9,5 @@ type DeleteCourseInput struct {
 
 // DeleteCourse defines the use case for deleting a course.
 type DeleteCourse interface {
-	Delete(input DeleteCourseInput) error
+	Delete(ctx context.Context, input DeleteCourseInput) error
 }

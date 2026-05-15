@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"studybuddy/backend/services/matching/domain"
@@ -22,8 +23,8 @@ func NewPgMatchRepository(pool *pgxpool.Pool) usecase.MatchRepository {
 	return &PgMatchRepository{pool: pool}
 }
 
-func (r *PgMatchRepository) Create(m *domain.Match) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (r *PgMatchRepository) Create(ctx context.Context, m *domain.Match) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	const q = `
@@ -31,16 +32,24 @@ INSERT INTO matches (requester_id, receiver_id, status, message)
 VALUES ($1, $2, $3, $4)
 RETURNING id, created_at, updated_at;
 `
-	return r.pool.QueryRow(ctx, q,
+	err := r.pool.QueryRow(ctx, q,
 		m.RequesterID,
 		m.ReceiverID,
 		string(m.Status),
 		m.Message,
 	).Scan(&m.ID, &m.CreatedAt, &m.UpdatedAt)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return domain.ErrMatchAlreadyExists
+		}
+		return err
+	}
+	return nil
 }
 
-func (r *PgMatchRepository) GetByID(id string) (*domain.Match, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (r *PgMatchRepository) GetByID(ctx context.Context, id string) (*domain.Match, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	const q = `
@@ -55,8 +64,8 @@ WHERE id = $1;
 	return m, err
 }
 
-func (r *PgMatchRepository) GetBetween(userA, userB string) (*domain.Match, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (r *PgMatchRepository) GetBetween(ctx context.Context, userA, userB string) (*domain.Match, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	// Returns any match (regardless of direction) that is pending or accepted.
@@ -77,8 +86,8 @@ LIMIT 1;
 	return m, err
 }
 
-func (r *PgMatchRepository) UpdateStatus(id string, status domain.MatchStatus) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (r *PgMatchRepository) UpdateStatus(ctx context.Context, id string, status domain.MatchStatus) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	const q = `
@@ -98,8 +107,8 @@ WHERE id = $1;
 	return nil
 }
 
-func (r *PgMatchRepository) ListForUser(userID string, f usecase.ListMatchesFilter) ([]domain.Match, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (r *PgMatchRepository) ListForUser(ctx context.Context, userID string, f usecase.ListMatchesFilter) ([]domain.Match, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	args := []any{userID}
@@ -168,9 +177,6 @@ func scanMatch(row rowScanner) (*domain.Match, error) {
 
 // helpers
 func isInvalidUUID(err error) bool {
-	if err == nil {
-		return false
-	}
-	return strings.Contains(err.Error(), "22P02") ||
+	return strings.Contains(err.Error(), "22PO2") ||
 		strings.Contains(err.Error(), "invalid input syntax for type uuid")
 }

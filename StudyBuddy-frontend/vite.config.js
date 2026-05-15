@@ -32,6 +32,26 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      '/api/v1/groups': {
+        target: 'http://localhost:8085',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/api/v1/reviews': {
+        target: 'http://localhost:8086',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/api/v1/points': {
+        target: 'http://localhost:8087',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/api/v1/sessions': {
+        target: 'http://localhost:8083',
+        changeOrigin: true,
+        secure: false,
+      },
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,

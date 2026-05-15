@@ -49,10 +49,12 @@ func main() {
 
 	registerUC := usecase.NewRegister(userRepo, hasher, jwtAdapter)
 	loginUC := usecase.NewLogin(userRepo, hasher, jwtAdapter)
+	refreshUC := usecase.NewRefresh(userRepo, jwtAdapter)
 
 	handler := &delivery.AuthHandler{
 		Register: registerUC,
 		Login:    loginUC,
+		Refresh:  refreshUC,
 	}
 	router := delivery.NewRouter(handler)
 

@@ -1,0 +1,163 @@
+name: Contract tests
+on: [push, pull_request]
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: studybuddy
+          POSTGRES_PASSWORD: studybuddy
+          POSTGRES_DB: studybuddy
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Run migrations
+        run: |
+          go install -tags postgres github.com/golang-migrate/migrate/v4/cmd/migrate@latest
+          "$(go env GOPATH)/bin/migrate" -path ./migrations -database \
+            "postgres://studybuddy:studybuddy@localhost:5432/studybuddy?sslmode=disable" up
+        env:
+          DATABASE_URL: postgres://studybuddy:studybuddy@localhost:5432/studybuddy?sslmode=disable
+
+      - name: Verify Postgres is ready
+        run: |
+          echo "Checking Postgres readiness..."
+          until pg_isready -h localhost -p 5432 -U studybuddy; do
+            echo "Postgres not ready yet, retrying..."
+            sleep 1
+          done
+          echo "Postgres is ready"
+
+      - name: Start all services
+        run: |
+          for svc in auth users courses availability matching reviews points groups; do
+            echo "Starting $svc..."
+            go run "./cmd/$svc" > /tmp/${svc}.log 2>&1 &
+            sleep 2
+          done
+        env:
+          DATABASE_URL: postgres://studybuddy:studybuddy@localhost:5432/studybuddy?sslmode=disable
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          GCAL_STATE_KEY: ${{ secrets.GCAL_STATE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          POINTS_SERVICE_URL: http://127.0.0.1:8087
+          REVIEWS_SERVICE_URL: http://127.0.0.1:8086
+
+      - name: Wait for all services to be healthy
+        run: |
+          declare -A ports=(
+            [auth]=8080 [users]=8081 [courses]=8082
+            [availability]=8083 [matching]=8084 [groups]=8085
+            [reviews]=8086 [points]=8087
+          )
+          for svc in "${!ports[@]}"; do
+            port=${ports[$svc]}
+            echo "Waiting for $svc on port $port..."
+            for i in $(seq 1 60); do
+              if curl -sf http://127.0.0.1:$port/health > /dev/null 2>&1; then
+                echo "$svc is healthy"
+                break
+              fi
+              if [ $i -eq 60 ]; then
+                echo "ERROR: $svc failed to start within 60 seconds"
+                echo "--- $svc logs ---"
+                echo "=== FULL LOG ==="
+                cat /tmp/${svc}.log
+                echo "=== END LOG ==="
+                exit 1
+              fi
+              sleep 1
+            done
+          done
+      - name: Install schemathesis
+        run: pip install "schemathesis==3.39.16"
+
+      - name: Run contract tests — auth (port 8080)
+        run: |
+          st run docs/openapi/studybuddy-api.yaml \
+            --base-url http://127.0.0.1:8080 \
+            --include-tag auth \
+            --checks not_a_server_error \
+            --hypothesis-max-examples 20
+
+      - name: Run contract tests — users (port 8081)
+        run: |
+          st run docs/openapi/studybuddy-api.yaml \
+            --base-url http://127.0.0.1:8081 \
+            --include-tag users \
+            --checks not_a_server_error \
+            --hypothesis-max-examples 20
+
+      - name: Run contract tests — courses (port 8082)
+        run: |
+          st run docs/openapi/studybuddy-api.yaml \
+            --base-url http://127.0.0.1:8082 \
+            --include-tag courses \
+            --checks not_a_server_error \
+            --hypothesis-max-examples 20
+
+      - name: Run contract tests — availability, gcal, sessions (port 8083)
+        run: |
+          st run docs/openapi/studybuddy-api.yaml \
+            --base-url http://127.0.0.1:8083 \
+            --include-tag availability \
+            --include-tag gcal \
+            --include-tag sessions \
+            --checks not_a_server_error \
+            --hypothesis-max-examples 20
+
+      - name: Run contract tests — matching (port 8084)
+        run: |
+          st run docs/openapi/studybuddy-api.yaml \
+            --base-url http://127.0.0.1:8084 \
+            --include-tag matching \
+            --checks not_a_server_error \
+            --hypothesis-max-examples 20
+
+      - name: Run contract tests — groups (port 8085)
+        run: |
+          st run docs/openapi/studybuddy-api.yaml \
+            --base-url http://127.0.0.1:8085 \
+            --include-tag groups \
+            --checks not_a_server_error \
+            --hypothesis-max-examples 20
+
+      - name: Run contract tests — reviews (port 8086)
+        run: |
+          st run docs/openapi/studybuddy-api.yaml \
+            --base-url http://127.0.0.1:8086 \
+            --include-tag reviews \
+            --checks not_a_server_error \
+            --hypothesis-max-examples 20
+
+      - name: Run contract tests — points (port 8087)
+        run: |
+          st run docs/openapi/studybuddy-api.yaml \
+            --base-url http://127.0.0.1:8087 \
+            --include-tag points \
+            --checks not_a_server_error \
+            --hypothesis-max-examples 20
+
+      - name: Run contract tests — health (port 8080)
+        run: |
+          st run docs/openapi/studybuddy-api.yaml \
+            --base-url http://127.0.0.1:8080 \
+            --include-tag health \
+            --checks not_a_server_error \
+            --hypothesis-max-examples 20

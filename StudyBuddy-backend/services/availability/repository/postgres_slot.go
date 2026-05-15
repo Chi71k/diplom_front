@@ -23,8 +23,8 @@ func NewPgSlotRepository(pool *pgxpool.Pool) usecase.SlotRepository {
 
 var _ usecase.SlotRepository = (*PgSlotRepository)(nil)
 
-func (r *PgSlotRepository) Create(slot *domain.Slot) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (r *PgSlotRepository) Create(ctx context.Context, slot *domain.Slot) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	const q = `
@@ -48,8 +48,8 @@ RETURNING id, created_at, updated_at;
 	return nil
 }
 
-func (r *PgSlotRepository) ListForUser(userID string) ([]domain.Slot, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (r *PgSlotRepository) ListForUser(ctx context.Context, userID string) ([]domain.Slot, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	const q = `
@@ -67,8 +67,8 @@ ORDER BY day_of_week, start_time;
 	return scanSlots(rows)
 }
 
-func (r *PgSlotRepository) GetByID(id string) (*domain.Slot, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (r *PgSlotRepository) GetByID(ctx context.Context, id string) (*domain.Slot, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	const q = `
@@ -98,8 +98,8 @@ WHERE id = $1;
 	return &slot, nil
 }
 
-func (r *PgSlotRepository) Delete(id string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (r *PgSlotRepository) Delete(ctx context.Context, id string) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	const q = `DELETE FROM availability_slots WHERE id = $1;`
@@ -110,8 +110,8 @@ func (r *PgSlotRepository) Delete(id string) error {
 	return nil
 }
 
-func (r *PgSlotRepository) DeleteAllForUser(userID string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (r *PgSlotRepository) DeleteAllForUser(ctx context.Context, userID string) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	const q = `DELETE FROM availability_slots WHERE user_id = $1;`
@@ -122,8 +122,8 @@ func (r *PgSlotRepository) DeleteAllForUser(userID string) error {
 	return nil
 }
 
-func (r *PgSlotRepository) ReplaceForUser(userID string, slots []domain.Slot) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+func (r *PgSlotRepository) ReplaceForUser(ctx context.Context, userID string, slots []domain.Slot) error {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	tx, err := r.pool.Begin(ctx)
@@ -164,12 +164,12 @@ ON CONFLICT (user_id, day_of_week, start_time) DO NOTHING;
 	return nil
 }
 
-func (r *PgSlotRepository) ListForUsers(userIDs []string) ([]domain.Slot, error) {
+func (r *PgSlotRepository) ListForUsers(ctx context.Context, userIDs []string) ([]domain.Slot, error) {
 	if len(userIDs) == 0 {
 		return []domain.Slot{}, nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	const q = `

@@ -10,6 +10,7 @@ import (
 	"github.com/joho/godotenv"
 
 	"studybuddy/backend/pkg/db"
+	"studybuddy/backend/pkg/embedding"
 	"studybuddy/backend/services/matching/delivery"
 	"studybuddy/backend/services/matching/repository"
 	"studybuddy/backend/services/matching/usecase"
@@ -20,6 +21,7 @@ func main() {
 
 	port := getEnv("MATCHING_SERVER_PORT", "8084")
 	jwtSecret := getEnv("JWT_SECRET", "dev-secret-change-in-production")
+	geminiKey := getEnv("GEMINI_API_KEY", "")
 	dsn := getEnv("DATABASE_URL", "postgres://studybuddy:studybuddy@localhost:5432/studybuddy?sslmode=disable")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -36,10 +38,16 @@ func main() {
 	profileClient := repository.NewPgProfileClient(pool)
 	slotClient := repository.NewPgSlotClient(pool)
 	courseClient := repository.NewPgCourseClient(pool)
+	embCache := embedding.NewPgCache(pool)
+	embedClient := embedding.NewClient(geminiKey)
+	embedProvider := repository.NewEmbeddingProvider(embedClient, embCache, profileClient, courseClient)
+	reputation := repository.NewHTTPReputationClient(getEnv("REVIEWS_SERVICE_URL", ""))
+	friendships := repository.NewPgFriendshipRepository(pool)
+	matchAccepter := repository.NewPgMatchAccepter(pool)
 
-	listCandidatesUC := usecase.NewListCandidates(matchRepo, profileClient, slotClient, courseClient, candidateStore)
+	listCandidatesUC := usecase.NewListCandidates(matchRepo, profileClient, slotClient, courseClient, candidateStore, embedProvider, reputation, friendships)
 	sendRequestUC := usecase.NewSendMatchRequest(matchRepo)
-	respondUC := usecase.NewRespondToMatch(matchRepo)
+	respondUC := usecase.NewRespondToMatch(matchRepo, matchAccepter)
 	cancelUC := usecase.NewCancelMatch(matchRepo)
 	listMatchesUC := usecase.NewListMatches(matchRepo)
 

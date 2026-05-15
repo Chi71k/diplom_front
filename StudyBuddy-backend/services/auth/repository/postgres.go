@@ -3,8 +3,8 @@ package repository
 import (
 	"context"
 	"errors"
-	"time"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"studybuddy/backend/services/auth/domain"
 	"studybuddy/backend/services/auth/usecase"
 
@@ -22,10 +22,7 @@ func NewPgUserRepository(pool *pgxpool.Pool) usecase.UserRepository {
 	return &PgUserRepository{pool: pool}
 }
 
-func (r *PgUserRepository) Create(user *domain.User) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
+func (r *PgUserRepository) Create(ctx context.Context, user *domain.User) error {
 	// Let DB generate id and timestamps.
 	const q = `
 INSERT INTO users (email, password_hash, first_name, last_name, is_active)
@@ -39,13 +36,17 @@ RETURNING id, created_at, updated_at;
 		user.LastName,
 		user.IsActive,
 	).Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
-	return err
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return domain.ErrEmailExists
+		}
+		return err
+	}
+	return nil
 }
 
-func (r *PgUserRepository) GetByEmail(email string) (*domain.User, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
+func (r *PgUserRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
 	const q = `
 SELECT id, email, password_hash, first_name, last_name, is_active, created_at, updated_at
 FROM users
@@ -64,17 +65,14 @@ WHERE email = $1;
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, nil
+			return nil, domain.ErrNotFound
 		}
 		return nil, err
 	}
 	return &u, nil
 }
 
-func (r *PgUserRepository) GetByID(id string) (*domain.User, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
+func (r *PgUserRepository) GetByID(ctx context.Context, id string) (*domain.User, error) {
 	const q = `
 SELECT id, email, password_hash, first_name, last_name, is_active, created_at, updated_at
 FROM users
@@ -93,7 +91,7 @@ WHERE id = $1;
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, nil
+			return nil, domain.ErrNotFound
 		}
 		return nil, err
 	}

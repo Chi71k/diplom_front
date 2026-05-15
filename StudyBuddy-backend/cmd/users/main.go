@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"studybuddy/backend/pkg/db"
+	"studybuddy/backend/pkg/embedding"
+	matchingrepo "studybuddy/backend/services/matching/repository"
 	"studybuddy/backend/services/users/delivery"
 	"studybuddy/backend/services/users/repository"
 	"studybuddy/backend/services/users/usecase"
@@ -33,14 +35,19 @@ func main() {
 	profileRepo := repository.NewPgProfileRepository(pool)
 	interestRepo := repository.NewPgInterestRepository(pool)
 	userIntrestRepo := repository.NewPgUserInterestRepository(pool)
+	embCache := embedding.NewPgCache(pool)
+	friendships := matchingrepo.NewPgFriendshipRepository(pool)
 
 	getMeUC := usecase.NewGetMe(profileRepo)
-	updateMeUC := usecase.NewUpdateMe(profileRepo)
+	updateMeUC := usecase.NewUpdateMe(profileRepo, embCache)
 	deleteMeUC := usecase.NewDeleteMe(profileRepo)
 
 	listInterestsUC := usecase.NewListInterests(interestRepo)
 	getMyInterestsUC := usecase.NewGetMyInterests(userIntrestRepo)
-	replaceMyInterestsUC := usecase.NewReplaceMyInterests(interestRepo, userIntrestRepo)
+	replaceMyInterestsUC := usecase.NewReplaceMyInterests(interestRepo, userIntrestRepo, embCache)
+
+	listFriendsUC := usecase.NewListFriends(friendships)
+	removeFriendUC := usecase.NewRemoveFriend(friendships)
 
 	usersHandler := &delivery.UsersHandler{
 		GetMe:    getMeUC,
@@ -52,8 +59,12 @@ func main() {
 		GetMine:     getMyInterestsUC,
 		ReplaceMine: replaceMyInterestsUC,
 	}
+	friendsHandler := &delivery.FriendsHandler{
+		List:   listFriendsUC,
+		Remove: removeFriendUC,
+	}
 
-	router := delivery.NewRouter(usersHandler, intrestsHandler, []byte(jwtSecret))
+	router := delivery.NewRouter(usersHandler, intrestsHandler, friendsHandler, []byte(jwtSecret))
 
 	log.Printf("users service listening on :%s", port)
 	if err := http.ListenAndServe(":"+port, router); err != nil {

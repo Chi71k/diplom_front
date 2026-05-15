@@ -1,5 +1,6 @@
 package usecase
 
+import "context"
 import "studybuddy/backend/services/courses/domain"
 
 // UpdateCourseInput is the input for updating a course.
@@ -14,5 +15,5 @@ type UpdateCourseInput struct {
 
 // UpdateCourse defines the use case for updating a course.
 type UpdateCourse interface {
-	Update(input UpdateCourseInput) (*domain.Course, error)
+	Update(ctx context.Context, input UpdateCourseInput) (*domain.Course, error)
 }

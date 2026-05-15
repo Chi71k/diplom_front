@@ -17,8 +17,8 @@ func NewPgUserInterestRepository(pool *pgxpool.Pool) usecase.UserInterestReposit
 	return &PgUserInterestRepository{pool: pool}
 }
 
-func (r *PgUserInterestRepository) ListForUser(userID string) ([]domain.Interest, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (r *PgUserInterestRepository) ListForUser(ctx context.Context, userID string) ([]domain.Interest, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	const q = `
@@ -45,8 +45,8 @@ ORDER BY i.name;
 	return out, rows.Err()
 }
 
-func (r *PgUserInterestRepository) ReplaceForUser(userID string, interestIDs []string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (r *PgUserInterestRepository) ReplaceForUser(ctx context.Context, userID string, interestIDs []string) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	tx, err := r.pool.Begin(ctx)

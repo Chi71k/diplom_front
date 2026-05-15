@@ -24,10 +24,12 @@ const Partners = () => {
 
         const enriched = items
           .map((request, i) => {
-            if (results[i].status !== 'fulfilled') return null
-            return { request, partner: results[i].value }
+            const partnerId = partnerIds[i]
+            const partner = results[i].status === 'fulfilled'
+              ? results[i].value
+              : { id: partnerId, firstName: partnerId?.slice(0, 8), lastName: '' }
+            return { request, partner }
           })
-          .filter(Boolean)
 
         setPartners(enriched)
       } catch (e) {

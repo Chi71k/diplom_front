@@ -22,8 +22,8 @@ func NewPgProfileRepository(pool *pgxpool.Pool) usecase.ProfileRepository {
 	return &PgProfileRepository{pool: pool}
 }
 
-func (r *PgProfileRepository) GetByUserID(userID string) (*domain.Profile, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (r *PgProfileRepository) GetByUserID(ctx context.Context, userID string) (*domain.Profile, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	const q = `
@@ -51,8 +51,8 @@ WHERE id = $1;
 	return &p, nil
 }
 
-func (r *PgProfileRepository) Upsert(profile *domain.Profile) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (r *PgProfileRepository) Upsert(ctx context.Context, profile *domain.Profile) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	// Users service must not create new users; it only updates existing profiles.
@@ -78,8 +78,8 @@ WHERE id = $1;
 
 // DeleteByUserID performs logical deletion: mark user as inactive.
 // Auth service will then reject logins for this user.
-func (r *PgProfileRepository) DeleteByUserID(userID string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (r *PgProfileRepository) DeleteByUserID(ctx context.Context, userID string) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	const q = `

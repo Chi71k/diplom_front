@@ -22,8 +22,11 @@ func New(cfg Config) *Provider {
 		ClientID:     cfg.ClientID,
 		ClientSecret: cfg.ClientSecret,
 		RedirectURL:  cfg.RedirectURL,
-		Scopes:       []string{calendar.CalendarReadonlyScope},
-		Endpoint:     google.Endpoint,
+		Scopes: []string{
+			calendar.CalendarReadonlyScope,
+			calendar.CalendarEventsScope,
+		},
+		Endpoint: google.Endpoint,
 	}
 	return &Provider{oauthCfg: oauthCfg}
 }

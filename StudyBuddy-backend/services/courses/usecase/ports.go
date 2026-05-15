@@ -1,14 +1,15 @@
 package usecase
 
+import "context"
 import "studybuddy/backend/services/courses/domain"
 
 // CourseRepository is the port for course persistence.
 type CourseRepository interface {
-	Create(course *domain.Course) error
-	Update(course *domain.Course) error
-	Delete(id string) error
-	GetByID(id string) (*domain.Course, error)
-	List(filter ListCoursesFilter) ([]domain.Course, error)
+	Create(ctx context.Context, course *domain.Course) error
+	Update(ctx context.Context, course *domain.Course) error
+	Delete(ctx context.Context, id string) error
+	GetByID(ctx context.Context, id string) (*domain.Course, error)
+	List(ctx context.Context, filter ListCoursesFilter) ([]domain.Course, error)
 }
 
 // ListCoursesFilter defines basic filters for listing courses.

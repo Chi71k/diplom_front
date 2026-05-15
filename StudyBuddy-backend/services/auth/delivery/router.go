@@ -1,13 +1,19 @@
 package delivery
 
-import "net/http"
+import (
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+)
 
 // NewRouter returns the auth service HTTP router.
 func NewRouter(h *AuthHandler) http.Handler {
-	mux := http.NewServeMux()
-	// Use path-only patterns for Go < 1.22; method is checked inside handlers.
-	mux.HandleFunc("/health", h.HandleHealth)
-	mux.HandleFunc("/api/v1/auth/register", h.HandleRegister)
-	mux.HandleFunc("/api/v1/auth/login", h.HandleLogin)
-	return mux
+	r := chi.NewRouter()
+
+	r.Get("/health", h.HandleHealth)
+	r.Post("/api/v1/auth/register", h.HandleRegister)
+	r.Post("/api/v1/auth/login", h.HandleLogin)
+	r.Post("/api/v1/auth/refresh", h.HandleRefresh)
+
+	return r
 }

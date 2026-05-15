@@ -6,12 +6,15 @@ import (
 	"errors"
 	"log"
 	"net/http"
-	"strings"
+	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+
 	"studybuddy/backend/pkg/auth"
 	"studybuddy/backend/pkg/httputil"
 	"studybuddy/backend/services/availability/domain"
 	"studybuddy/backend/services/availability/usecase"
-	"time"
 )
 
 // AvailabilityHandler exposes all availability HTTP endpoints.
@@ -22,6 +25,11 @@ type AvailabilityHandler struct {
 	GCalConnect    usecase.GCalConnect
 	GCalImport     usecase.GCalImport
 	GCalDisconnect usecase.GCalDisconnect
+	ProposeSession usecase.ProposeSession
+	ConfirmSession usecase.ConfirmSession
+	CancelSession  usecase.CancelSession
+	ListMySessions usecase.ListMySessions
+	GetSession     usecase.GetSession
 }
 
 // request / response shapes
@@ -54,36 +62,20 @@ type DisconnectRequest struct {
 
 // HandleHealth GET /health
 func (h *AvailabilityHandler) HandleHealth(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		httputil.Error(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
 	httputil.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-// ── slots collection: GET + POST /api/v1/availability/slots ──────────────────
+// ── slots: GET + POST /api/v1/availability/slots ─────────────────────────────
 
-// HandleSlotsCollection dispatches GET and POST on /api/v1/availability/slots.
-func (h *AvailabilityHandler) HandleSlotsCollection(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		h.handleListSlots(w, r)
-	case http.MethodPost:
-		h.handleCreateSlot(w, r)
-	default:
-		httputil.Error(w, http.StatusMethodNotAllowed, "method not allowed")
-	}
-}
-
-// handleListSlots GET /api/v1/availability/slots
-func (h *AvailabilityHandler) handleListSlots(w http.ResponseWriter, r *http.Request) {
+// HandleListSlots GET /api/v1/availability/slots
+func (h *AvailabilityHandler) HandleListSlots(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == "" {
 		httputil.Error(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
-	slots, err := h.ListSlots.ListSlots(userID)
+	slots, err := h.ListSlots.ListSlots(r.Context(), userID)
 	if err != nil {
 		log.Printf("handleListSlots: %v", err)
 		httputil.Error(w, http.StatusInternalServerError, "failed to list slots")
@@ -97,8 +89,8 @@ func (h *AvailabilityHandler) handleListSlots(w http.ResponseWriter, r *http.Req
 	httputil.JSON(w, http.StatusOK, map[string]any{"items": resp})
 }
 
-// handleCreateSlot POST /api/v1/availability/slots
-func (h *AvailabilityHandler) handleCreateSlot(w http.ResponseWriter, r *http.Request) {
+// HandleCreateSlot POST /api/v1/availability/slots
+func (h *AvailabilityHandler) HandleCreateSlot(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == "" {
 		httputil.Error(w, http.StatusUnauthorized, "unauthorized")
@@ -116,7 +108,7 @@ func (h *AvailabilityHandler) handleCreateSlot(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	out, err := h.CreateSlot.CreateSlot(usecase.CreateSlotInput{
+	out, err := h.CreateSlot.CreateSlot(r.Context(), usecase.CreateSlotInput{
 		UserID:    userID,
 		DayOfWeek: req.DayOfWeek,
 		StartTime: req.StartTime,
@@ -142,33 +134,24 @@ func (h *AvailabilityHandler) handleCreateSlot(w http.ResponseWriter, r *http.Re
 	httputil.JSON(w, http.StatusCreated, slotToResponse(out.Slot))
 }
 
-// ── slot item: DELETE /api/v1/availability/slots/{id} ────────────────────────
-
-// HandleSlotItem dispatches DELETE on /api/v1/availability/slots/{id}.
-func (h *AvailabilityHandler) HandleSlotItem(w http.ResponseWriter, r *http.Request) {
-	id := strings.TrimPrefix(r.URL.Path, "/api/v1/availability/slots/")
-	if id == "" || strings.Contains(id, "/") {
-		httputil.Error(w, http.StatusNotFound, "not found")
-		return
-	}
-
-	switch r.Method {
-	case http.MethodDelete:
-		h.handleDeleteSlot(w, r, id)
-	default:
-		httputil.Error(w, http.StatusMethodNotAllowed, "method not allowed")
-	}
+// HandleDeleteSlot DELETE /api/v1/availability/slots/{slotId}
+func (h *AvailabilityHandler) HandleDeleteSlot(w http.ResponseWriter, r *http.Request) {
+	slotID := chi.URLParam(r, "slotId")
+	h.handleDeleteSlot(w, r, slotID)
 }
 
-// handleDeleteSlot DELETE /api/v1/availability/slots/{id}
 func (h *AvailabilityHandler) handleDeleteSlot(w http.ResponseWriter, r *http.Request, slotID string) {
+	if _, err := uuid.Parse(slotID); err != nil {
+		httputil.Error(w, http.StatusBadRequest, "invalid slot id")
+		return
+	}
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == "" {
 		httputil.Error(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
-	err := h.DeleteSlot.DeleteSlot(usecase.DeleteSlotInput{
+	err := h.DeleteSlot.DeleteSlot(r.Context(), usecase.DeleteSlotInput{
 		UserID: userID,
 		SlotID: slotID,
 	})
@@ -193,18 +176,13 @@ func (h *AvailabilityHandler) handleDeleteSlot(w http.ResponseWriter, r *http.Re
 // HandleGCalConnect GET /api/v1/availability/gcal/connect
 // Returns the Google OAuth consent URL. The frontend redirects the user there.
 func (h *AvailabilityHandler) HandleGCalConnect(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		httputil.Error(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
-
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == "" {
 		httputil.Error(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
-	authURL, err := h.GCalConnect.GetAuthUrl(userID)
+	authURL, err := h.GCalConnect.GetAuthUrl(r.Context(), userID)
 	if err != nil {
 		log.Printf("HandleGCalConnect: build auth url: %v", err)
 		httputil.Error(w, http.StatusInternalServerError, "failed to build google auth url")
@@ -221,11 +199,6 @@ func (h *AvailabilityHandler) HandleGCalConnect(w http.ResponseWriter, r *http.R
 // This endpoint is NOT protected by JWT middleware — identity is verified via
 // the HMAC-signed state parameter that the GCalConnect use case produces.
 func (h *AvailabilityHandler) HandleGCalCallback(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		httputil.Error(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
-
 	q := r.URL.Query()
 
 	// Google sends an "error" query param when the user denies consent.
@@ -243,7 +216,7 @@ func (h *AvailabilityHandler) HandleGCalCallback(w http.ResponseWriter, r *http.
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
 	defer cancel()
 	if err := h.GCalConnect.HandleCallback(ctx, state, code); err != nil {
 		switch {
@@ -285,11 +258,6 @@ func (h *AvailabilityHandler) HandleGCalCallback(w http.ResponseWriter, r *http.
 // Triggers a manual sync: fetches the user's Google Calendar events for the
 // next 4 weeks and converts them into recurring availability slots.
 func (h *AvailabilityHandler) HandleGCalImport(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		httputil.Error(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
-
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == "" {
 		httputil.Error(w, http.StatusUnauthorized, "unauthorized")
@@ -303,6 +271,8 @@ func (h *AvailabilityHandler) HandleGCalImport(w http.ResponseWriter, r *http.Re
 			httputil.Error(w, http.StatusPreconditionRequired, "google calendar is not connected — call /gcal/connect first")
 		case errors.Is(err, domain.ErrGCalSyncDisabled):
 			httputil.Error(w, http.StatusForbidden, "google calendar sync is disabled for your account")
+		case errors.Is(err, domain.ErrGCalRefreshFailed):
+			httputil.Error(w, http.StatusServiceUnavailable, "google calendar token refresh failed")
 		default:
 			log.Printf("HandleGCalImport: %v", err)
 			httputil.Error(w, http.StatusInternalServerError, "failed to import from google calendar")
@@ -323,11 +293,6 @@ func (h *AvailabilityHandler) HandleGCalImport(w http.ResponseWriter, r *http.Re
 // Removes the stored OAuth connection. An optional JSON body controls whether
 // imported slots are also deleted (defaults to false).
 func (h *AvailabilityHandler) HandleGCalDisconnect(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodDelete {
-		httputil.Error(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
-
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == "" {
 		httputil.Error(w, http.StatusUnauthorized, "unauthorized")
@@ -338,7 +303,7 @@ func (h *AvailabilityHandler) HandleGCalDisconnect(w http.ResponseWriter, r *htt
 	var req DisconnectRequest
 	_ = json.NewDecoder(r.Body).Decode(&req) // intentionally ignoring decode error
 
-	if err := h.GCalDisconnect.Disconnect(usecase.GCalDisconnectInput{
+	if err := h.GCalDisconnect.Disconnect(r.Context(), usecase.GCalDisconnectInput{
 		UserID:              userID,
 		DeleteImportedSlots: req.DeleteSlots,
 	}); err != nil {
@@ -348,6 +313,204 @@ func (h *AvailabilityHandler) HandleGCalDisconnect(w http.ResponseWriter, r *htt
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// ── study sessions ───────────────────────────────────────────────────────────
+
+type proposeSessionBody struct {
+	Title          string   `json:"title"`
+	ParticipantIDs []string `json:"participantIds"`
+	CourseID       string   `json:"courseId"`
+	GroupID        string   `json:"groupId"`
+	StartTime      string   `json:"startTime"`
+	EndTime        string   `json:"endTime"`
+	Timezone       string   `json:"timezone"`
+}
+
+type sessionParticipantResponse struct {
+	UserID      string `json:"userId"`
+	Confirmed   bool   `json:"confirmed"`
+	GCalEventID string `json:"gcalEventId,omitempty"`
+}
+
+type sessionResponse struct {
+	ID             string                       `json:"id"`
+	Title          string                       `json:"title"`
+	OrganizerID    string                       `json:"organizerId"`
+	ParticipantIDs []string                     `json:"participantIds"`
+	CourseID       string                       `json:"courseId,omitempty"`
+	GroupID        string                       `json:"groupId,omitempty"`
+	StartTime      string                       `json:"startTime"`
+	EndTime        string                       `json:"endTime"`
+	Timezone       string                       `json:"timezone"`
+	Status         string                       `json:"status"`
+	Participants   []sessionParticipantResponse `json:"participants"`
+	GCalEventIDs   map[string]string            `json:"gcalEventIds,omitempty"`
+	CreatedAt      string                       `json:"createdAt"`
+}
+
+func (h *AvailabilityHandler) HandleProposeSession(w http.ResponseWriter, r *http.Request) {
+	userID := auth.UserIDFromContext(r.Context())
+	if userID == "" {
+		httputil.Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	var body proposeSessionBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		httputil.Error(w, http.StatusBadRequest, "invalid body")
+		return
+	}
+	start, err := time.Parse(time.RFC3339, body.StartTime)
+	if err != nil {
+		httputil.Error(w, http.StatusBadRequest, "invalid startTime")
+		return
+	}
+	end, err := time.Parse(time.RFC3339, body.EndTime)
+	if err != nil {
+		httputil.Error(w, http.StatusBadRequest, "invalid endTime")
+		return
+	}
+	s, err := h.ProposeSession.ProposeSession(r.Context(), usecase.ProposeSessionInput{
+		OrganizerID:    userID,
+		Title:          body.Title,
+		ParticipantIDs: body.ParticipantIDs,
+		CourseID:       body.CourseID,
+		GroupID:        body.GroupID,
+		StartTime:      start,
+		EndTime:        end,
+		Timezone:       body.Timezone,
+	})
+	if err != nil {
+		mapSessionErr(w, err)
+		return
+	}
+	httputil.JSON(w, http.StatusCreated, sessionToResponse(s))
+}
+
+func (h *AvailabilityHandler) HandleListMySessions(w http.ResponseWriter, r *http.Request) {
+	userID := auth.UserIDFromContext(r.Context())
+	if userID == "" {
+		httputil.Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	list, err := h.ListMySessions.ListMySessions(r.Context(), userID)
+	if err != nil {
+		httputil.Error(w, http.StatusInternalServerError, "failed to list sessions")
+		return
+	}
+	out := make([]sessionResponse, 0, len(list))
+	for i := range list {
+		out = append(out, sessionToResponse(&list[i]))
+	}
+	httputil.JSON(w, http.StatusOK, map[string]any{"items": out})
+}
+
+func (h *AvailabilityHandler) HandleGetSession(w http.ResponseWriter, r *http.Request) {
+	userID := auth.UserIDFromContext(r.Context())
+	if userID == "" {
+		httputil.Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	id := chi.URLParam(r, "sessionID")
+	if _, err := uuid.Parse(id); err != nil {
+		httputil.Error(w, http.StatusBadRequest, "invalid session id")
+		return
+	}
+	s, err := h.GetSession.GetSession(r.Context(), usecase.GetSessionInput{SessionID: id})
+	if err != nil {
+		mapSessionErr(w, err)
+		return
+	}
+	httputil.JSON(w, http.StatusOK, sessionToResponse(s))
+}
+
+func (h *AvailabilityHandler) HandleConfirmSession(w http.ResponseWriter, r *http.Request) {
+	userID := auth.UserIDFromContext(r.Context())
+	if userID == "" {
+		httputil.Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	id := chi.URLParam(r, "sessionID")
+	if _, err := uuid.Parse(id); err != nil {
+		httputil.Error(w, http.StatusBadRequest, "invalid session id")
+		return
+	}
+	s, err := h.ConfirmSession.ConfirmSession(r.Context(), usecase.ConfirmSessionInput{UserID: userID, SessionID: id})
+	if err != nil {
+		mapSessionErr(w, err)
+		return
+	}
+	httputil.JSON(w, http.StatusOK, sessionToResponse(s))
+}
+
+func (h *AvailabilityHandler) HandleCancelSession(w http.ResponseWriter, r *http.Request) {
+	userID := auth.UserIDFromContext(r.Context())
+	if userID == "" {
+		httputil.Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	id := chi.URLParam(r, "sessionID")
+	if _, err := uuid.Parse(id); err != nil {
+		httputil.Error(w, http.StatusBadRequest, "invalid session id")
+		return
+	}
+	if err := h.CancelSession.CancelSession(r.Context(), usecase.CancelSessionInput{ActorID: userID, SessionID: id}); err != nil {
+		mapSessionErr(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func sessionToResponse(s *domain.Session) sessionResponse {
+	parts := make([]sessionParticipantResponse, 0, len(s.ParticipantsMeta))
+	for _, p := range s.ParticipantsMeta {
+		g := p.GCalEventID
+		parts = append(parts, sessionParticipantResponse{
+			UserID:      p.UserID,
+			Confirmed:   p.Confirmed,
+			GCalEventID: g,
+		})
+	}
+	ids := s.ParticipantIDs
+	if ids == nil {
+		ids = []string{}
+	}
+	gm := s.GCalEventIDs
+	if len(gm) == 0 {
+		gm = nil
+	}
+	return sessionResponse{
+		ID:             s.ID,
+		Title:          s.Title,
+		OrganizerID:    s.OrganizerID,
+		ParticipantIDs: ids,
+		CourseID:       s.CourseID,
+		GroupID:        s.GroupID,
+		StartTime:      s.StartTime.UTC().Format(time.RFC3339),
+		EndTime:        s.EndTime.UTC().Format(time.RFC3339),
+		Timezone:       s.Timezone,
+		Status:         string(s.Status),
+		Participants:   parts,
+		GCalEventIDs:   gm,
+		CreatedAt:      s.CreatedAt.UTC().Format(time.RFC3339),
+	}
+}
+
+func mapSessionErr(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, domain.ErrSessionNotFound):
+		httputil.Error(w, http.StatusNotFound, "session not found")
+	case errors.Is(err, domain.ErrNotParticipant):
+		httputil.Error(w, http.StatusForbidden, err.Error())
+	case errors.Is(err, domain.ErrNotOrganizer):
+		httputil.Error(w, http.StatusForbidden, err.Error())
+	case errors.Is(err, domain.ErrSessionInPast),
+		errors.Is(err, domain.ErrInvalidDuration),
+		errors.Is(err, domain.ErrNoParticipants):
+		httputil.Error(w, http.StatusBadRequest, err.Error())
+	default:
+		httputil.Error(w, http.StatusInternalServerError, "request failed")
+	}
 }
 
 // helpers

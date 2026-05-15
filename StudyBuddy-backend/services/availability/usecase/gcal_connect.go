@@ -14,7 +14,7 @@ import (
 type GCalConnect interface {
 	// Returns the Google OAuth consent URL. The frontend redirects
 	// the user to this URL. The state param encodes user ID securely.
-	GetAuthUrl(userID string) (string, error)
+	GetAuthUrl(ctx context.Context, userID string) (string, error)
 
 	// Called after Google redirects back to our callback endpoint
 	// Validates the state, exchanges the code for tokens, and persists
@@ -36,7 +36,8 @@ func NewGCalConnect(gcal GCalProvider, gcalRepo GCalRepository, stateKey []byte)
 	}
 }
 
-func (gc *gcalConnect) GetAuthUrl(userID string) (string, error) {
+func (gc *gcalConnect) GetAuthUrl(ctx context.Context, userID string) (string, error) {
+	_ = ctx
 	state, err := gc.buildState(userID)
 	if err != nil {
 		return "", fmt.Errorf("failed to build state: %w", err)
@@ -57,7 +58,7 @@ func (gc *gcalConnect) HandleCallback(ctx context.Context, state, code string) e
 
 	conn.UserID = userID
 
-	if err := gc.gcalRepo.UpsertConnection(conn); err != nil {
+	if err := gc.gcalRepo.UpsertConnection(ctx, conn); err != nil {
 		return fmt.Errorf("persist gcal connection: %w", err)
 	}
 	return nil

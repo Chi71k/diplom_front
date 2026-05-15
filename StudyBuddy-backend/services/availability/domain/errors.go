@@ -8,6 +8,7 @@ var (
 	ErrOAuthStateExpired = errors.New("OAuth state has expired, please try again")
 
 	// GCal connection errors
-	ErrGCalNotConnected = errors.New("google calendar is not connected for this user")
-	ErrGCalSyncDisabled = errors.New("google calendar sync is disabled for this user")
+	ErrGCalNotConnected  = errors.New("google calendar is not connected for this user")
+	ErrGCalSyncDisabled  = errors.New("google calendar sync is disabled for this user")
+	ErrGCalRefreshFailed = errors.New("google calendar token refresh failed")
 )

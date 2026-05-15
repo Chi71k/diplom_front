@@ -1,5 +1,6 @@
 package usecase
 
+import "context"
 import "studybuddy/backend/services/availability/domain"
 
 type DeleteSlotInput struct {
@@ -8,7 +9,7 @@ type DeleteSlotInput struct {
 }
 
 type DeleteSlot interface {
-	DeleteSlot(input DeleteSlotInput) error
+	DeleteSlot(ctx context.Context, input DeleteSlotInput) error
 }
 
 type deleteSlot struct {
@@ -19,8 +20,8 @@ func NewDeleteSlot(repo SlotRepository) DeleteSlot {
 	return &deleteSlot{repo: repo}
 }
 
-func (d *deleteSlot) DeleteSlot(input DeleteSlotInput) error {
-	existing, err := d.repo.GetByID(input.SlotID)
+func (d *deleteSlot) DeleteSlot(ctx context.Context, input DeleteSlotInput) error {
+	existing, err := d.repo.GetByID(ctx, input.SlotID)
 	if err != nil {
 		return err
 	}
@@ -31,5 +32,5 @@ func (d *deleteSlot) DeleteSlot(input DeleteSlotInput) error {
 	if existing.UserID != input.UserID {
 		return domain.ErrForbidden
 	}
-	return d.repo.Delete(input.SlotID)
+	return d.repo.Delete(ctx, input.SlotID)
 }

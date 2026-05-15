@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"studybuddy/backend/pkg/db"
+	"studybuddy/backend/pkg/embedding"
 	"studybuddy/backend/services/courses/delivery"
 	"studybuddy/backend/services/courses/repository"
 	"studybuddy/backend/services/courses/usecase"
@@ -31,7 +32,8 @@ func main() {
 	defer pool.Close()
 
 	repo := repository.NewPgCourseRepository(pool)
-	svc := usecase.NewService(repo)
+	embCache := embedding.NewPgCache(pool)
+	svc := usecase.NewService(repo, embCache)
 
 	handler := &delivery.CoursesHandler{
 		List:   svc,

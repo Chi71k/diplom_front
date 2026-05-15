@@ -26,7 +26,7 @@ func NewGCalImport(gcal GCalProvider, gcalRepo GCalRepository, slotRepo SlotRepo
 }
 
 func (gc *gcalImport) ImportFromGCal(ctx context.Context, userID string) ([]domain.Slot, error) {
-	conn, err := gc.gcalRepo.GetConnection(userID)
+	conn, err := gc.gcalRepo.GetConnection(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("get gcal connection: %w", err)
 	}
@@ -37,12 +37,12 @@ func (gc *gcalImport) ImportFromGCal(ctx context.Context, userID string) ([]doma
 		return nil, domain.ErrGCalSyncDisabled
 	}
 
-	if time.Now().Add(60 * time.Second).After(conn.TokenExpiry) {
+	if conn.TokenExpiry.Before(time.Now().Add(60 * time.Second)) {
 		conn, err = gc.gcal.RefreshToken(ctx, conn)
 		if err != nil {
-			return nil, fmt.Errorf("refresh gcal token: %w", err)
+			return nil, fmt.Errorf("gcal token refresh: %w", domain.ErrGCalRefreshFailed)
 		}
-		if err := gc.gcalRepo.UpsertConnection(conn); err != nil {
+		if err := gc.gcalRepo.UpsertConnection(ctx, conn); err != nil {
 			return nil, fmt.Errorf("persist refreshed token: %w", err)
 		}
 	}
@@ -58,13 +58,13 @@ func (gc *gcalImport) ImportFromGCal(ctx context.Context, userID string) ([]doma
 		}
 	}
 
-	if err := gc.slotRepo.ReplaceForUser(userID, imported); err != nil {
+	if err := gc.slotRepo.ReplaceForUser(ctx, userID, imported); err != nil {
 		return nil, fmt.Errorf("replace slots: %w", err)
 	}
 
 	now := time.Now()
 	conn.LastSyncedAt = &now
-	if err := gc.gcalRepo.UpsertConnection(conn); err != nil {
+	if err := gc.gcalRepo.UpsertConnection(ctx, conn); err != nil {
 		return imported, fmt.Errorf("update last_synced_at: %w", err)
 	}
 

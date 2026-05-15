@@ -54,6 +54,9 @@ make run-auth
 
 # Terminal 2 – Users
 make run-users
+
+# Terminal 3 – Courses
+make run-courses
 ```
 
 Or run from IDE: set working directory to repo root and run `cmd/auth` and `cmd/users`.
@@ -62,6 +65,7 @@ Or run from IDE: set working directory to repo root and run `cmd/auth` and `cmd/
 
 - Auth: `GET http://localhost:8080/health`
 - Users: `GET http://localhost:8081/health`
+- Courses: `GET http://localhost:8082/health`
 
 ## Project layout
 
@@ -69,14 +73,16 @@ Or run from IDE: set working directory to repo root and run `cmd/auth` and `cmd/
 StudyBuddy-backend/
 ├── cmd/
 │   ├── auth/               # Auth service entrypoint
-│   └── users/              # Users service entrypoint
+│   ├── users/              # Users service entrypoint
+│   └── courses/            # Courses service entrypoint
 ├── pkg/                    # Shared libraries (no service deps)
 │   ├── auth/               # JWT issue/validate, middleware, context
 │   ├── httputil/           # JSON response helpers
 │   └── password/           # bcrypt hash/compare
 ├── services/
 │   ├── auth/               # Auth: domain, usecase, delivery, repository
-│   └── users/              # Users: domain, usecase, delivery, repository
+│   ├── users/              # Users: domain, usecase, delivery, repository
+│   └── courses/            # Courses: domain, usecase, delivery, repository
 ├── docs/
 │   ├── architecture.md
 │   └── openapi/
@@ -95,6 +101,7 @@ StudyBuddy-backend/
 |--------|-------------|
 | 000001 | `users` table (id, email, password_hash, first_name, last_name, bio, avatar_url, is_active, created_at, updated_at). Used by Auth and Users services. |
 | 000002 | `interests` catalog and `user_interests` junction table; seeds default interests (Programming, Mathematics, etc.). |
+| 000003 | `courses` table (id, title, description, subject, level, owner_user_id, created_at, updated_at). Owned by Courses service. |
 
 ## Development plan (MVP)
 

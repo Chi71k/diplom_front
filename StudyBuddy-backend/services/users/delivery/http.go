@@ -38,16 +38,12 @@ type UpdateProfileRequest struct {
 
 // HandleGetMe GET /api/v1/users/me (requires JWT).
 func (h *UsersHandler) HandleGetMe(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		httputil.Error(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == "" {
 		httputil.Error(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
-	profile, err := h.GetMe.GetMe(userID)
+	profile, err := h.GetMe.GetMe(r.Context(), userID)
 	if err != nil {
 		httputil.Error(w, http.StatusInternalServerError, "failed to get profile")
 		return
@@ -61,10 +57,6 @@ func (h *UsersHandler) HandleGetMe(w http.ResponseWriter, r *http.Request) {
 
 // HandleUpdateMe PUT /api/v1/users/me (requires JWT).
 func (h *UsersHandler) HandleUpdateMe(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPut {
-		httputil.Error(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == "" {
 		httputil.Error(w, http.StatusUnauthorized, "unauthorized")
@@ -80,7 +72,7 @@ func (h *UsersHandler) HandleUpdateMe(w http.ResponseWriter, r *http.Request) {
 	in.LastName = req.LastName
 	in.Bio = req.Bio
 	in.AvatarURL = req.AvatarURL
-	profile, err := h.UpdateMe.UpdateMe(in)
+	profile, err := h.UpdateMe.UpdateMe(r.Context(), in)
 	if err != nil {
 		httputil.Error(w, http.StatusInternalServerError, "failed to update profile")
 		return
@@ -90,52 +82,20 @@ func (h *UsersHandler) HandleUpdateMe(w http.ResponseWriter, r *http.Request) {
 
 // HandleDeleteMe DELETE /api/v1/users/me (requires JWT).
 func (h *UsersHandler) HandleDeleteMe(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodDelete {
-		httputil.Error(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == "" {
 		httputil.Error(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
-	if err := h.DeleteMe.DeleteMe(userID); err != nil {
+	if err := h.DeleteMe.DeleteMe(r.Context(), userID); err != nil {
 		httputil.Error(w, http.StatusInternalServerError, "failed to delete account")
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// HandleGetUserByID GET /api/v1/users/:id (requires JWT).
-func (h *UsersHandler) HandleGetUserByID(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		httputil.Error(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
-	const prefix = "/api/v1/users/"
-	id := r.URL.Path[len(prefix):]
-	if id == "" {
-		httputil.Error(w, http.StatusBadRequest, "missing user id")
-		return
-	}
-	profile, err := h.GetMe.GetMe(id)
-	if err != nil {
-		httputil.Error(w, http.StatusInternalServerError, "failed to get profile")
-		return
-	}
-	if profile == nil {
-		httputil.Error(w, http.StatusNotFound, "user not found")
-		return
-	}
-	httputil.JSON(w, http.StatusOK, profileToResponse(profile))
-}
-
 // HandleHealth GET /health
 func (h *UsersHandler) HandleHealth(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		httputil.Error(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
 	httputil.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 

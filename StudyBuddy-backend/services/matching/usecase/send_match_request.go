@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"context"
 	"fmt"
 	"studybuddy/backend/services/matching/domain"
 )
@@ -12,7 +13,7 @@ type SendMatchRequestInput struct {
 }
 
 type SendMatchRequest interface {
-	Send(in SendMatchRequestInput) (*domain.Match, error)
+	Send(ctx context.Context, in SendMatchRequestInput) (*domain.Match, error)
 }
 
 type sendMatchRequest struct {
@@ -23,12 +24,12 @@ func NewSendMatchRequest(repo MatchRepository) SendMatchRequest {
 	return &sendMatchRequest{repo: repo}
 }
 
-func (uc *sendMatchRequest) Send(in SendMatchRequestInput) (*domain.Match, error) {
+func (uc *sendMatchRequest) Send(ctx context.Context, in SendMatchRequestInput) (*domain.Match, error) {
 	if in.RequesterID == in.ReceiverID {
 		return nil, domain.ErrCannotMatchSelf
 	}
 
-	existing, err := uc.repo.GetBetween(in.RequesterID, in.ReceiverID)
+	existing, err := uc.repo.GetBetween(ctx, in.RequesterID, in.ReceiverID)
 	if err != nil {
 		return nil, fmt.Errorf("check existing match: %w", err)
 	}
@@ -43,7 +44,7 @@ func (uc *sendMatchRequest) Send(in SendMatchRequestInput) (*domain.Match, error
 		Status:      domain.MatchStatusPending,
 		Message:     in.Message,
 	}
-	if err := uc.repo.Create(m); err != nil {
+	if err := uc.repo.Create(ctx, m); err != nil {
 		return nil, fmt.Errorf("create match: %w", err)
 	}
 	return m, nil

@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"context"
 	"fmt"
 	"studybuddy/backend/services/matching/domain"
 )
@@ -12,19 +13,20 @@ type RespondToMatchInput struct {
 }
 
 type RespondToMatch interface {
-	Respond(in RespondToMatchInput) (*domain.Match, error)
+	Respond(ctx context.Context, in RespondToMatchInput) (*domain.Match, error)
 }
 
 type respondToMatch struct {
-	repo MatchRepository
+	repo     MatchRepository
+	accepter MatchAccepter
 }
 
-func NewRespondToMatch(repo MatchRepository) RespondToMatch {
-	return &respondToMatch{repo: repo}
+func NewRespondToMatch(repo MatchRepository, accepter MatchAccepter) RespondToMatch {
+	return &respondToMatch{repo: repo, accepter: accepter}
 }
 
-func (uc *respondToMatch) Respond(in RespondToMatchInput) (*domain.Match, error) {
-	m, err := uc.repo.GetByID(in.MatchID)
+func (uc *respondToMatch) Respond(ctx context.Context, in RespondToMatchInput) (*domain.Match, error) {
+	m, err := uc.repo.GetByID(ctx, in.MatchID)
 	if err != nil {
 		return nil, fmt.Errorf("get match: %w", err)
 	}
@@ -39,14 +41,17 @@ func (uc *respondToMatch) Respond(in RespondToMatchInput) (*domain.Match, error)
 		return nil, domain.ErrInvalidStatusChange
 	}
 
-	newStatus := domain.MatchStatusDeclined
 	if in.Accept {
-		newStatus = domain.MatchStatusAccepted
+		if err := uc.accepter.AcceptAndBefriend(ctx, m.ID, m.RequesterID, m.ReceiverID); err != nil {
+			return nil, fmt.Errorf("accept match: %w", err)
+		}
+		m.Status = domain.MatchStatusAccepted
+		return m, nil
 	}
 
-	if err := uc.repo.UpdateStatus(m.ID, newStatus); err != nil {
+	if err := uc.repo.UpdateStatus(ctx, m.ID, domain.MatchStatusDeclined); err != nil {
 		return nil, fmt.Errorf("update match status: %w", err)
 	}
-	m.Status = newStatus
+	m.Status = domain.MatchStatusDeclined
 	return m, nil
 }

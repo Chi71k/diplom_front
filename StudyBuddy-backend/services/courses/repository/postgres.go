@@ -23,8 +23,8 @@ func NewPgCourseRepository(pool *pgxpool.Pool) usecase.CourseRepository {
 	return &PgCourseRepository{pool: pool}
 }
 
-func (r *PgCourseRepository) Create(course *domain.Course) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (r *PgCourseRepository) Create(ctx context.Context, course *domain.Course) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	const q = `
@@ -42,8 +42,8 @@ RETURNING id, created_at, updated_at;
 	return err
 }
 
-func (r *PgCourseRepository) Update(course *domain.Course) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (r *PgCourseRepository) Update(ctx context.Context, course *domain.Course) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	const q = `
@@ -66,13 +66,13 @@ WHERE id = $1;
 		return err
 	}
 	if ct.RowsAffected() == 0 {
-		return pgx.ErrNoRows
+		return domain.ErrCourseNotFound
 	}
 	return nil
 }
 
-func (r *PgCourseRepository) Delete(id string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (r *PgCourseRepository) Delete(ctx context.Context, id string) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	const q = `
@@ -83,8 +83,8 @@ WHERE id = $1;
 	return err
 }
 
-func (r *PgCourseRepository) GetByID(id string) (*domain.Course, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (r *PgCourseRepository) GetByID(ctx context.Context, id string) (*domain.Course, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	const q = `
@@ -112,8 +112,8 @@ WHERE id = $1;
 	return &c, nil
 }
 
-func (r *PgCourseRepository) List(filter usecase.ListCoursesFilter) ([]domain.Course, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (r *PgCourseRepository) List(ctx context.Context, filter usecase.ListCoursesFilter) ([]domain.Course, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	// Simple filtering on subject and level; pagination via limit/offset.

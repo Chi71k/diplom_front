@@ -23,8 +23,8 @@ func NewPgGCalRepository(pool *pgxpool.Pool, encryptionKey []byte) usecase.GCalR
 	return &PgGCalRepository{pool: pool, key: encryptionKey}
 }
 
-func (r *PgGCalRepository) GetConnection(userID string) (*domain.GCalConnection, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (r *PgGCalRepository) GetConnection(ctx context.Context, userID string) (*domain.GCalConnection, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	const q = `
@@ -72,8 +72,8 @@ WHERE user_id = $1;
 	return &conn, nil
 }
 
-func (r *PgGCalRepository) UpsertConnection(conn *domain.GCalConnection) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (r *PgGCalRepository) UpsertConnection(ctx context.Context, conn *domain.GCalConnection) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	encAccessToken, err := crypto.Encrypt(r.key, conn.AccessToken)
@@ -114,8 +114,8 @@ ON CONFLICT (user_id) DO UPDATE
 	return nil
 }
 
-func (r *PgGCalRepository) DeleteConnection(userID string) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (r *PgGCalRepository) DeleteConnection(ctx context.Context, userID string) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	const q = `DELETE FROM gcal_connections WHERE user_id = $1;`

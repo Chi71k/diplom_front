@@ -1,11 +1,12 @@
 package usecase
 
+import "context"
 import "studybuddy/backend/services/users/domain"
 
 // ProfileRepository is the port for profile persistence.
 type ProfileRepository interface {
-	GetByUserID(userID string) (*domain.Profile, error)
-	Upsert(profile *domain.Profile) error
+	GetByUserID(ctx context.Context, userID string) (*domain.Profile, error)
+	Upsert(ctx context.Context, profile *domain.Profile) error
 	// DeleteByUserID performs logical deletion for the user (e.g. deactivate).
-	DeleteByUserID(userID string) error
+	DeleteByUserID(ctx context.Context, userID string) error
 }

@@ -1,5 +1,6 @@
 package usecase
 
+import "context"
 import "studybuddy/backend/services/courses/domain"
 
 // CreateCourseInput is the input for creating a course.
@@ -13,5 +14,5 @@ type CreateCourseInput struct {
 
 // CreateCourse defines the use case for creating a course.
 type CreateCourse interface {
-	Create(input CreateCourseInput) (*domain.Course, error)
+	Create(ctx context.Context, input CreateCourseInput) (*domain.Course, error)
 }

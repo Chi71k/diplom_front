@@ -324,3 +324,224 @@ export async function apiCancelMatchRequest(id) {
   if (res.status === 204) return
   return handleResponse(res)
 }
+
+// --- Friends ---
+export async function apiGetFriends() {
+  const res = await apiFetch(`${API_BASE}/api/v1/users/me/friends`, {
+    method: 'GET',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  return handleResponse(res)
+}
+
+export async function apiRemoveFriend(friendId) {
+  const res = await apiFetch(`${API_BASE}/api/v1/users/me/friends/${friendId}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  if (res.status === 204) return
+  return handleResponse(res)
+}
+
+// --- Sessions ---
+export async function apiListMySessions() {
+  const res = await apiFetch(`${API_BASE}/api/v1/sessions`, {
+    method: 'GET',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  return handleResponse(res)
+}
+
+export async function apiProposeSession(body) {
+  const res = await apiFetch(`${API_BASE}/api/v1/sessions`, {
+    method: 'POST',
+    headers: authHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(body),
+  })
+  return handleResponse(res)
+}
+
+export async function apiConfirmSession(id) {
+  const res = await apiFetch(`${API_BASE}/api/v1/sessions/${id}/confirm`, {
+    method: 'POST',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  return handleResponse(res)
+}
+
+export async function apiCancelSession(id) {
+  const res = await apiFetch(`${API_BASE}/api/v1/sessions/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  if (res.status === 204) return
+  return handleResponse(res)
+}
+
+// --- Groups ---
+export async function apiListMyGroups() {
+  const res = await apiFetch(`${API_BASE}/api/v1/groups`, {
+    method: 'GET',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  return handleResponse(res)
+}
+
+export async function apiGetGroup(id) {
+  const res = await apiFetch(`${API_BASE}/api/v1/groups/${id}`, {
+    method: 'GET',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  return handleResponse(res)
+}
+
+export async function apiCreateGroup(body) {
+  const res = await apiFetch(`${API_BASE}/api/v1/groups`, {
+    method: 'POST',
+    headers: authHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(body),
+  })
+  return handleResponse(res)
+}
+
+export async function apiUpdateGroup(id, body) {
+  const res = await apiFetch(`${API_BASE}/api/v1/groups/${id}`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(body),
+  })
+  return handleResponse(res)
+}
+
+export async function apiDeleteGroup(id) {
+  const res = await apiFetch(`${API_BASE}/api/v1/groups/${id}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  if (res.status === 204) return
+  return handleResponse(res)
+}
+
+export async function apiInviteMember(groupId, userId) {
+  const res = await apiFetch(`${API_BASE}/api/v1/groups/${groupId}/members`, {
+    method: 'POST',
+    headers: authHeaders(),
+    credentials: 'include',
+    body: JSON.stringify({ userId }),
+  })
+  if (res.status === 204) return
+  return handleResponse(res)
+}
+
+export async function apiRemoveMember(groupId, userId) {
+  const res = await apiFetch(
+    `${API_BASE}/api/v1/groups/${groupId}/members/${userId}`,
+    {
+      method: 'DELETE',
+      headers: authHeaders(),
+      credentials: 'include',
+    }
+  )
+  if (res.status === 204) return
+  return handleResponse(res)
+}
+
+export async function apiGetGroupSuggestions(groupId, limit = 10) {
+  const res = await apiFetch(
+    `${API_BASE}/api/v1/groups/${groupId}/suggestions?limit=${limit}`,
+    {
+      method: 'GET',
+      headers: authHeaders(),
+      credentials: 'include',
+    }
+  )
+  return handleResponse(res)
+}
+
+// --- Points ---
+export async function apiGetMyPoints() {
+  const res = await apiFetch(`${API_BASE}/api/v1/points/me`, {
+    method: 'GET',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  return handleResponse(res)
+}
+
+export async function apiGetLeaderboard(limit = 20) {
+  const res = await apiFetch(
+    `${API_BASE}/api/v1/points/leaderboard?limit=${limit}`,
+    {
+      method: 'GET',
+      headers: authHeaders(),
+      credentials: 'include',
+    }
+  )
+  return handleResponse(res)
+}
+
+export async function apiGetReputationLeaderboard(limit = 20) {
+  const res = await apiFetch(
+    `${API_BASE}/api/v1/points/leaderboard/reputation?limit=${limit}`,
+    {
+      method: 'GET',
+      headers: authHeaders(),
+      credentials: 'include',
+    }
+  )
+  return handleResponse(res)
+}
+
+export async function apiSearchLeaderboard(q, limit = 10) {
+  const params = new URLSearchParams({ q, limit })
+  const res = await apiFetch(
+    `${API_BASE}/api/v1/points/leaderboard/search?${params}`,
+    {
+      method: 'GET',
+      headers: authHeaders(),
+      credentials: 'include',
+    }
+  )
+  return handleResponse(res)
+}
+
+// --- Reviews ---
+export async function apiCreateReview(body) {
+  const res = await apiFetch(`${API_BASE}/api/v1/reviews`, {
+    method: 'POST',
+    headers: authHeaders(),
+    credentials: 'include',
+    body: JSON.stringify(body),
+  })
+  return handleResponse(res)
+}
+
+export async function apiListReviewsForUser(userId) {
+  const res = await apiFetch(
+    `${API_BASE}/api/v1/reviews/users/${userId}`,
+    {
+      method: 'GET',
+      headers: authHeaders(),
+      credentials: 'include',
+    }
+  )
+  return handleResponse(res)
+}
+
+export async function apiGetUserRating(userId) {
+  const res = await fetch(
+    `${API_BASE}/api/v1/reviews/users/${userId}/rating`
+  )
+  return handleResponse(res)
+}

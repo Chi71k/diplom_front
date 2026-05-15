@@ -18,6 +18,12 @@ import CourseForm from './pages/courses/CourseForm'
 import Candidates from './pages/matching/Candidates'
 import Requests from './pages/matching/Requests'
 import Partners from './pages/partners/Partners'
+import Groups from './pages/groups/Groups'
+import GroupForm from './pages/groups/GroupForm'
+import GroupDetail from './pages/groups/GroupDetail'
+import Sessions from './pages/sessions/Sessions'
+import Points from './pages/points/Points'
+import Reviews from './pages/reviews/Reviews'
 
 
 function AppRoutes() {
@@ -87,6 +93,13 @@ function AppRoutes() {
         <Route path="matching/requests" element={<Requests />} />
         <Route path="availability" element={<Availability />} />
         <Route path="matching/partners" element={<Partners />} />
+        <Route path="groups" element={<Groups />} />
+        <Route path="groups/new" element={<GroupForm />} />
+        <Route path="groups/:id" element={<GroupDetail />} />
+        <Route path="groups/:id/edit" element={<GroupForm edit />} />
+        <Route path="sessions" element={<Sessions />} />
+        <Route path="points" element={<Points />} />
+        <Route path="reviews" element={<Reviews />} />
       </Route>
       <Route path="*" element={<Navigate to={token ? '/profile' : '/login'} replace />} />
     </Routes>

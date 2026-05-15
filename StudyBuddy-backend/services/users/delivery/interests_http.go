@@ -20,11 +20,7 @@ type ReplaceMyInterestsRequest struct {
 }
 
 func (h *InterestsHandler) HandleListCatalog(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		httputil.Error(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
-	items, err := h.ListCatalog.ListInterests()
+	items, err := h.ListCatalog.ListInterests(r.Context())
 	if err != nil {
 		httputil.Error(w, http.StatusInternalServerError, "failed to list interests")
 		return
@@ -33,16 +29,12 @@ func (h *InterestsHandler) HandleListCatalog(w http.ResponseWriter, r *http.Requ
 }
 
 func (h *InterestsHandler) HandleGetMyInterests(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		httputil.Error(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == "" {
 		httputil.Error(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
-	items, err := h.GetMine.GetMyInterests(userID)
+	items, err := h.GetMine.GetMyInterests(r.Context(), userID)
 	if err != nil {
 		httputil.Error(w, http.StatusInternalServerError, "failed to list interests")
 		return
@@ -51,10 +43,6 @@ func (h *InterestsHandler) HandleGetMyInterests(w http.ResponseWriter, r *http.R
 }
 
 func (h *InterestsHandler) HandleReplaceMyInterests(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPut {
-		httputil.Error(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == "" {
 		httputil.Error(w, http.StatusUnauthorized, "unauthorized")
@@ -67,7 +55,7 @@ func (h *InterestsHandler) HandleReplaceMyInterests(w http.ResponseWriter, r *ht
 		return
 	}
 
-	items, err := h.ReplaceMine.ReplaceMyInterests(usecase.ReplaceMyInterestsInput{
+	items, err := h.ReplaceMine.ReplaceMyInterests(r.Context(), usecase.ReplaceMyInterestsInput{
 		UserID:      userID,
 		InterestIDs: req.InterestIDs,
 	})

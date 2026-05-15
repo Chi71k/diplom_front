@@ -21,8 +21,8 @@ func NewPgProfileClient(pool *pgxpool.Pool) usecase.ProfileClient {
 	return &PgProfileClient{pool: pool}
 }
 
-func (c *PgProfileClient) GetProfile(userID string) (*usecase.ProfileData, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (c *PgProfileClient) GetProfile(ctx context.Context, userID string) (*usecase.ProfileData, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	const q = `
@@ -44,8 +44,36 @@ WHERE id = $1 AND is_active = true;
 	return &p, nil
 }
 
-func (c *PgProfileClient) GetInterestIDs(userID string) ([]string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (c *PgProfileClient) ListInterestNamesForUser(ctx context.Context, userID string) ([]string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	const q = `
+SELECT i.name
+FROM user_interests ui
+JOIN interests i ON i.id = ui.interest_id
+WHERE ui.user_id = $1
+ORDER BY i.name;
+`
+	rows, err := c.pool.Query(ctx, q, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list interest names: %w", err)
+	}
+	defer rows.Close()
+
+	var names []string
+	for rows.Next() {
+		var n string
+		if err := rows.Scan(&n); err != nil {
+			return nil, err
+		}
+		names = append(names, n)
+	}
+	return names, rows.Err()
+}
+
+func (c *PgProfileClient) GetInterestIDs(ctx context.Context, userID string) ([]string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	const q = `
@@ -79,27 +107,27 @@ func NewPgSlotClient(pool *pgxpool.Pool) usecase.SlotClient {
 	return &PgSlotClient{pool: pool}
 }
 
-func (c *PgSlotClient) ListForUser(userID string) ([]usecase.SlotData, error) {
+func (c *PgSlotClient) ListForUser(ctx context.Context, userID string) ([]usecase.SlotData, error) {
 	return c.querySlots(
 		`SELECT id::text, user_id::text, day_of_week, start_time::text, end_time::text, timezone
 		 FROM availability_slots WHERE user_id = $1`,
-		userID,
+		ctx, userID,
 	)
 }
 
-func (c *PgSlotClient) ListForUsers(userIDs []string) ([]usecase.SlotData, error) {
+func (c *PgSlotClient) ListForUsers(ctx context.Context, userIDs []string) ([]usecase.SlotData, error) {
 	if len(userIDs) == 0 {
 		return nil, nil
 	}
 	return c.querySlots(
 		`SELECT id::text, user_id::text, day_of_week, start_time::text, end_time::text, timezone
 		 FROM availability_slots WHERE user_id = ANY($1::uuid[])`,
-		userIDs,
+		ctx, userIDs,
 	)
 }
 
-func (c *PgSlotClient) querySlots(q string, arg any) ([]usecase.SlotData, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (c *PgSlotClient) querySlots(q string, ctx context.Context, arg any) ([]usecase.SlotData, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	rows, err := c.pool.Query(ctx, q, arg)
@@ -139,8 +167,35 @@ func NewPgCourseClient(pool *pgxpool.Pool) usecase.CourseClient {
 	return &PgCourseClient{pool: pool}
 }
 
-func (c *PgCourseClient) ListCourseIDsForUser(userID string) ([]string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (c *PgCourseClient) ListCourseTitlesForUser(ctx context.Context, userID string) ([]string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	const q = `
+SELECT title
+FROM courses
+WHERE owner_user_id = $1
+ORDER BY title;
+`
+	rows, err := c.pool.Query(ctx, q, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list course titles: %w", err)
+	}
+	defer rows.Close()
+
+	var titles []string
+	for rows.Next() {
+		var t string
+		if err := rows.Scan(&t); err != nil {
+			return nil, err
+		}
+		titles = append(titles, t)
+	}
+	return titles, rows.Err()
+}
+
+func (c *PgCourseClient) ListCourseIDsForUser(ctx context.Context, userID string) ([]string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	const q = `

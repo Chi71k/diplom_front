@@ -18,8 +18,8 @@ func NewPgCandidateStore(pool *pgxpool.Pool) usecase.CandidateStore {
 	return &PgCandidateStore{pool: pool}
 }
 
-func (r *PgCandidateStore) ListCandidateIDs(requesterID string, excludeIDs []string) ([]string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (r *PgCandidateStore) ListCandidateIDs(ctx context.Context, requesterID string, excludeIDs []string) ([]string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	// Exclude the requester themselves and all already-matched users.

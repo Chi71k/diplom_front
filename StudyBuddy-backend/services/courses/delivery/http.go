@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
-	"strings"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 
 	"studybuddy/backend/pkg/auth"
 	"studybuddy/backend/pkg/httputil"
@@ -49,45 +51,11 @@ type UpdateCourseRequest struct {
 
 // HandleHealth GET /health
 func (h *CoursesHandler) HandleHealth(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		httputil.Error(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
 	httputil.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-// HandleCoursesCollection handles GET and POST /api/v1/courses
-func (h *CoursesHandler) HandleCoursesCollection(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		h.handleListCourses(w, r)
-	case http.MethodPost:
-		h.handleCreateCourse(w, r)
-	default:
-		httputil.Error(w, http.StatusMethodNotAllowed, "method not allowed")
-	}
-}
-
-// HandleCourseItem handles GET, PATCH, DELETE /api/v1/courses/{id}
-func (h *CoursesHandler) HandleCourseItem(w http.ResponseWriter, r *http.Request) {
-	id := strings.TrimPrefix(r.URL.Path, "/api/v1/courses/")
-	if id == "" || strings.Contains(id, "/") {
-		httputil.Error(w, http.StatusNotFound, "not found")
-		return
-	}
-	switch r.Method {
-	case http.MethodGet:
-		h.handleGetCourse(w, r, id)
-	case http.MethodPatch:
-		h.handleUpdateCourse(w, r, id)
-	case http.MethodDelete:
-		h.handleDeleteCourse(w, r, id)
-	default:
-		httputil.Error(w, http.StatusMethodNotAllowed, "method not allowed")
-	}
-}
-
-func (h *CoursesHandler) handleListCourses(w http.ResponseWriter, r *http.Request) {
+// HandleListCourses GET /api/v1/courses
+func (h *CoursesHandler) HandleListCourses(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	filter := usecase.ListCoursesFilter{
 		Subject: q.Get("subject"),
@@ -105,7 +73,7 @@ func (h *CoursesHandler) handleListCourses(w http.ResponseWriter, r *http.Reques
 			filter.Offset = n
 		}
 	}
-	courses, err := h.List.List(filter)
+	courses, err := h.List.List(r.Context(), filter)
 	if err != nil {
 		httputil.Error(w, http.StatusInternalServerError, "failed to list courses")
 		return
@@ -117,8 +85,18 @@ func (h *CoursesHandler) handleListCourses(w http.ResponseWriter, r *http.Reques
 	httputil.JSON(w, http.StatusOK, resp)
 }
 
+// HandleGetCourse GET /api/v1/courses/{courseId}
+func (h *CoursesHandler) HandleGetCourse(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "courseId")
+	h.handleGetCourse(w, r, id)
+}
+
 func (h *CoursesHandler) handleGetCourse(w http.ResponseWriter, r *http.Request, id string) {
-	course, err := h.Get.Get(id)
+	if _, err := uuid.Parse(id); err != nil {
+		httputil.Error(w, http.StatusBadRequest, "invalid course id")
+		return
+	}
+	course, err := h.Get.Get(r.Context(), id)
 	if err != nil {
 		httputil.Error(w, http.StatusInternalServerError, "failed to get course")
 		return
@@ -130,7 +108,8 @@ func (h *CoursesHandler) handleGetCourse(w http.ResponseWriter, r *http.Request,
 	httputil.JSON(w, http.StatusOK, courseToResponse(course))
 }
 
-func (h *CoursesHandler) handleCreateCourse(w http.ResponseWriter, r *http.Request) {
+// HandleCreateCourse POST /api/v1/courses
+func (h *CoursesHandler) HandleCreateCourse(w http.ResponseWriter, r *http.Request) {
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == "" {
 		httputil.Error(w, http.StatusUnauthorized, "unauthorized")
@@ -145,7 +124,7 @@ func (h *CoursesHandler) handleCreateCourse(w http.ResponseWriter, r *http.Reque
 		httputil.Error(w, http.StatusBadRequest, "title, description, subject, level required")
 		return
 	}
-	course, err := h.Create.Create(usecase.CreateCourseInput{
+	course, err := h.Create.Create(r.Context(), usecase.CreateCourseInput{
 		Title:       req.Title,
 		Description: req.Description,
 		Subject:     req.Subject,
@@ -159,7 +138,17 @@ func (h *CoursesHandler) handleCreateCourse(w http.ResponseWriter, r *http.Reque
 	httputil.JSON(w, http.StatusCreated, courseToResponse(course))
 }
 
+// HandlePatchCourse PATCH /api/v1/courses/{courseId}
+func (h *CoursesHandler) HandlePatchCourse(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "courseId")
+	h.handleUpdateCourse(w, r, id)
+}
+
 func (h *CoursesHandler) handleUpdateCourse(w http.ResponseWriter, r *http.Request, id string) {
+	if _, err := uuid.Parse(id); err != nil {
+		httputil.Error(w, http.StatusBadRequest, "invalid course id")
+		return
+	}
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == "" {
 		httputil.Error(w, http.StatusUnauthorized, "unauthorized")
@@ -170,7 +159,24 @@ func (h *CoursesHandler) handleUpdateCourse(w http.ResponseWriter, r *http.Reque
 		httputil.Error(w, http.StatusBadRequest, "invalid body")
 		return
 	}
-	course, err := h.Update.Update(usecase.UpdateCourseInput{
+	if req.Title == nil && req.Description == nil && req.Subject == nil && req.Level == nil {
+		course, err := h.Get.Get(r.Context(), id)
+		if err != nil {
+			httputil.Error(w, http.StatusInternalServerError, "failed to get course")
+			return
+		}
+		if course == nil {
+			httputil.Error(w, http.StatusNotFound, "course not found")
+			return
+		}
+		if course.OwnerUserID != userID {
+			httputil.Error(w, http.StatusForbidden, "you do not own this course")
+			return
+		}
+		httputil.JSON(w, http.StatusOK, courseToResponse(course))
+		return
+	}
+	course, err := h.Update.Update(r.Context(), usecase.UpdateCourseInput{
 		ID:             id,
 		RequestingUser: userID,
 		Title:          req.Title,
@@ -192,13 +198,23 @@ func (h *CoursesHandler) handleUpdateCourse(w http.ResponseWriter, r *http.Reque
 	httputil.JSON(w, http.StatusOK, courseToResponse(course))
 }
 
+// HandleDeleteCourse DELETE /api/v1/courses/{courseId}
+func (h *CoursesHandler) HandleDeleteCourse(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "courseId")
+	h.handleDeleteCourse(w, r, id)
+}
+
 func (h *CoursesHandler) handleDeleteCourse(w http.ResponseWriter, r *http.Request, id string) {
+	if _, err := uuid.Parse(id); err != nil {
+		httputil.Error(w, http.StatusBadRequest, "invalid course id")
+		return
+	}
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == "" {
 		httputil.Error(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
-	if err := h.Delete.Delete(usecase.DeleteCourseInput{
+	if err := h.Delete.Delete(r.Context(), usecase.DeleteCourseInput{
 		ID:             id,
 		RequestingUser: userID,
 	}); err != nil {

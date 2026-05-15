@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"context"
 	"studybuddy/backend/services/auth/domain"
 )
 
@@ -23,7 +24,7 @@ type RegisterOutput struct {
 
 // Register registers a new user and returns tokens.
 type Register interface {
-	Register(in RegisterInput) (RegisterOutput, error)
+	Register(ctx context.Context, in RegisterInput) (RegisterOutput, error)
 }
 
 type register struct {
@@ -37,8 +38,8 @@ func NewRegister(repo UserRepository, hasher PasswordHasher, jwt JWTIssuer) Regi
 	return &register{repo: repo, hasher: hasher, jwt: jwt}
 }
 
-func (u *register) Register(in RegisterInput) (RegisterOutput, error) {
-	existing, _ := u.repo.GetByEmail(in.Email)
+func (u *register) Register(ctx context.Context, in RegisterInput) (RegisterOutput, error) {
+	existing, _ := u.repo.GetByEmail(ctx, in.Email)
 	if existing != nil {
 		return RegisterOutput{}, domain.ErrEmailExists
 	}
@@ -53,7 +54,7 @@ func (u *register) Register(in RegisterInput) (RegisterOutput, error) {
 		LastName:     in.LastName,
 		IsActive:     true,
 	}
-	if err := u.repo.Create(user); err != nil {
+	if err := u.repo.Create(ctx, user); err != nil {
 		return RegisterOutput{}, err
 	}
 	access, refresh, expAt, err := u.jwt.IssuePair(user.ID, user.Email)

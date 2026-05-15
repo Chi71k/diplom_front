@@ -1,5 +1,6 @@
 package usecase
 
+import "context"
 import "fmt"
 
 type GCalDisconnectInput struct {
@@ -8,7 +9,7 @@ type GCalDisconnectInput struct {
 }
 
 type GCalDisconnect interface {
-	Disconnect(in GCalDisconnectInput) error
+	Disconnect(ctx context.Context, in GCalDisconnectInput) error
 }
 
 type gcalDisconnect struct {
@@ -23,8 +24,8 @@ func NewGCalDisconnect(gcalRepo GCalRepository, slotRepo SlotRepository) GCalDis
 	}
 }
 
-func (gc *gcalDisconnect) Disconnect(in GCalDisconnectInput) error {
-	conn, err := gc.gcalRepo.GetConnection(in.UserID)
+func (gc *gcalDisconnect) Disconnect(ctx context.Context, in GCalDisconnectInput) error {
+	conn, err := gc.gcalRepo.GetConnection(ctx, in.UserID)
 	if err != nil {
 		return fmt.Errorf("get gcal connection: %w", err)
 	}
@@ -33,12 +34,12 @@ func (gc *gcalDisconnect) Disconnect(in GCalDisconnectInput) error {
 	}
 
 	if in.DeleteImportedSlots {
-		if err := gc.slotRepo.DeleteAllForUser(in.UserID); err != nil {
+		if err := gc.slotRepo.DeleteAllForUser(ctx, in.UserID); err != nil {
 			return fmt.Errorf("delete imported slots: %w", err)
 		}
 	}
 
-	if err := gc.gcalRepo.DeleteConnection(in.UserID); err != nil {
+	if err := gc.gcalRepo.DeleteConnection(ctx, in.UserID); err != nil {
 		return fmt.Errorf("delete gcal connection: %w", err)
 	}
 	return nil

@@ -1,16 +1,20 @@
 package usecase
 
 import (
+	"context"
 	"errors"
+	"log"
 	"sort"
 	"strings"
+
+	"studybuddy/backend/pkg/embedding"
 	"studybuddy/backend/services/users/domain"
 )
 
 var ErrInvalidInterestIDs = errors.New("invalid interest ids")
 
 type ListInterests interface {
-	ListInterests() ([]domain.Interest, error)
+	ListInterests(ctx context.Context) ([]domain.Interest, error)
 }
 
 type listInterests struct {
@@ -21,12 +25,12 @@ func NewListInterests(repo InterestRepository) ListInterests {
 	return &listInterests{repo: repo}
 }
 
-func (l *listInterests) ListInterests() ([]domain.Interest, error) {
-	return l.repo.ListAll()
+func (l *listInterests) ListInterests(ctx context.Context) ([]domain.Interest, error) {
+	return l.repo.ListAll(ctx)
 }
 
 type GetMyInterests interface {
-	GetMyInterests(userID string) ([]domain.Interest, error)
+	GetMyInterests(ctx context.Context, userID string) ([]domain.Interest, error)
 }
 
 type getMyInterests struct {
@@ -37,8 +41,8 @@ func NewGetMyInterests(repo UserInterestRepository) GetMyInterests {
 	return &getMyInterests{repo: repo}
 }
 
-func (g *getMyInterests) GetMyInterests(userID string) ([]domain.Interest, error) {
-	return g.repo.ListForUser(userID)
+func (g *getMyInterests) GetMyInterests(ctx context.Context, userID string) ([]domain.Interest, error) {
+	return g.repo.ListForUser(ctx, userID)
 }
 
 type ReplaceMyInterestsInput struct {
@@ -47,22 +51,23 @@ type ReplaceMyInterestsInput struct {
 }
 
 type ReplaceMyInterests interface {
-	ReplaceMyInterests(in ReplaceMyInterestsInput) ([]domain.Interest, error)
+	ReplaceMyInterests(ctx context.Context, in ReplaceMyInterestsInput) ([]domain.Interest, error)
 }
 
 type replaceMyInterests struct {
 	interestRepo InterestRepository
 	userRepo     UserInterestRepository
+	cache        embedding.Cache
 }
 
-func NewReplaceMyInterests(interestRepo InterestRepository, userRepo UserInterestRepository) ReplaceMyInterests {
-	return &replaceMyInterests{interestRepo: interestRepo, userRepo: userRepo}
+func NewReplaceMyInterests(interestRepo InterestRepository, userRepo UserInterestRepository, cache embedding.Cache) ReplaceMyInterests {
+	return &replaceMyInterests{interestRepo: interestRepo, userRepo: userRepo, cache: cache}
 }
 
-func (u *replaceMyInterests) ReplaceMyInterests(in ReplaceMyInterestsInput) ([]domain.Interest, error) {
+func (u *replaceMyInterests) ReplaceMyInterests(ctx context.Context, in ReplaceMyInterestsInput) ([]domain.Interest, error) {
 	ids := normalizeIDs(in.InterestIDs)
 
-	existing, err := u.interestRepo.GetByIDs(ids)
+	existing, err := u.interestRepo.GetByIDs(ctx, ids)
 	if err != nil {
 		return nil, err
 	}
@@ -70,8 +75,14 @@ func (u *replaceMyInterests) ReplaceMyInterests(in ReplaceMyInterestsInput) ([]d
 		return nil, ErrInvalidInterestIDs
 	}
 
-	if err := u.userRepo.ReplaceForUser(in.UserID, ids); err != nil {
+	if err := u.userRepo.ReplaceForUser(ctx, in.UserID, ids); err != nil {
 		return nil, err
+	}
+
+	if u.cache != nil {
+		if err := u.cache.Delete(ctx, in.UserID); err != nil {
+			log.Printf("embedding cache invalidate after interests replace: %v", err)
+		}
 	}
 
 	sort.Slice(existing, func(i, j int) bool { return existing[i].Name < existing[j].Name })

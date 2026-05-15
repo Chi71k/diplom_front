@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"context"
 	"studybuddy/backend/services/auth/domain"
 )
 
@@ -21,7 +22,7 @@ type LoginOutput struct {
 
 // Login authenticates and returns tokens.
 type Login interface {
-	Login(in LoginInput) (LoginOutput, error)
+	Login(ctx context.Context, in LoginInput) (LoginOutput, error)
 }
 
 type login struct {
@@ -35,8 +36,8 @@ func NewLogin(repo UserRepository, hasher PasswordHasher, jwt JWTIssuer) Login {
 	return &login{repo: repo, hasher: hasher, jwt: jwt}
 }
 
-func (u *login) Login(in LoginInput) (LoginOutput, error) {
-	user, err := u.repo.GetByEmail(in.Email)
+func (u *login) Login(ctx context.Context, in LoginInput) (LoginOutput, error) {
+	user, err := u.repo.GetByEmail(ctx, in.Email)
 	if err != nil || user == nil {
 		return LoginOutput{}, domain.ErrInvalidCreds
 	}

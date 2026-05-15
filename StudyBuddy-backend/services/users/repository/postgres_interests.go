@@ -18,8 +18,8 @@ func NewPgInterestRepository(pool *pgxpool.Pool) usecase.InterestRepository {
 	return &PgInterestRepository{pool: pool}
 }
 
-func (r *PgInterestRepository) ListAll() ([]domain.Interest, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+func (r *PgInterestRepository) ListAll(ctx context.Context) ([]domain.Interest, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	const q = `
@@ -44,11 +44,11 @@ ORDER BY name;
 	return out, rows.Err()
 }
 
-func (r *PgInterestRepository) GetByIDs(ids []string) ([]domain.Interest, error) {
+func (r *PgInterestRepository) GetByIDs(ctx context.Context, ids []string) ([]domain.Interest, error) {
 	if len(ids) == 0 {
 		return []domain.Interest{}, nil
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	const q = `

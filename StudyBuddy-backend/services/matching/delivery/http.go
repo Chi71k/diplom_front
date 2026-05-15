@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strconv"
 
+	"github.com/go-chi/chi/v5"
+
 	"studybuddy/backend/pkg/auth"
 	"studybuddy/backend/pkg/httputil"
 	"studybuddy/backend/services/matching/domain"
@@ -48,6 +50,7 @@ type CandidateResponse struct {
 	AvatarURL     string                `json:"avatarUrl"`
 	CommonCourses []string              `json:"commonCourses"`
 	CommonSlots   []SlotOverlapResponse `json:"commonSlots"`
+	SemanticScore float64               `json:"semanticScore"`
 	OverallScore  float64               `json:"overallScore"`
 }
 
@@ -62,20 +65,12 @@ type RespondMatchBody struct {
 
 // health checks
 func (h *MatchingHandler) HandleHealth(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		httputil.Error(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
 	httputil.JSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
 // GET /api/v1/matching/candidates
 
 func (h *MatchingHandler) HandleListCandidates(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		httputil.Error(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == "" {
 		httputil.Error(w, http.StatusUnauthorized, "unauthorized")
@@ -89,7 +84,7 @@ func (h *MatchingHandler) HandleListCandidates(w http.ResponseWriter, r *http.Re
 		}
 	}
 
-	candidates, err := h.ListCandidates.ListCandidates(usecase.ListCandidatesInput{
+	candidates, err := h.ListCandidates.ListCandidates(r.Context(), usecase.ListCandidatesInput{
 		RequesterID: userID,
 		Limit:       limit,
 	})
@@ -108,10 +103,6 @@ func (h *MatchingHandler) HandleListCandidates(w http.ResponseWriter, r *http.Re
 // POST /api/v1/matching/requests
 
 func (h *MatchingHandler) HandleSendRequest(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		httputil.Error(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == "" {
 		httputil.Error(w, http.StatusUnauthorized, "unauthorized")
@@ -127,8 +118,12 @@ func (h *MatchingHandler) HandleSendRequest(w http.ResponseWriter, r *http.Reque
 		httputil.Error(w, http.StatusBadRequest, "receiverId is required")
 		return
 	}
+	if !uuidRE.MatchString(body.ReceiverID) {
+		httputil.Error(w, http.StatusBadRequest, "receiverId must be a valid uuid")
+		return
+	}
 
-	m, err := h.SendRequest.Send(usecase.SendMatchRequestInput{
+	m, err := h.SendRequest.Send(r.Context(), usecase.SendMatchRequestInput{
 		RequesterID: userID,
 		ReceiverID:  body.ReceiverID,
 		Message:     body.Message,
@@ -149,10 +144,6 @@ func (h *MatchingHandler) HandleSendRequest(w http.ResponseWriter, r *http.Reque
 
 // GET /api/v1/matching/requests
 func (h *MatchingHandler) HandleListMatches(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		httputil.Error(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == "" {
 		httputil.Error(w, http.StatusUnauthorized, "unauthorized")
@@ -175,7 +166,7 @@ func (h *MatchingHandler) HandleListMatches(w http.ResponseWriter, r *http.Reque
 		}
 	}
 
-	matches, err := h.ListMatches.List(usecase.ListMatchesInput{
+	matches, err := h.ListMatches.List(r.Context(), usecase.ListMatchesInput{
 		UserID: userID,
 		Status: status,
 		Limit:  limit,
@@ -195,18 +186,14 @@ func (h *MatchingHandler) HandleListMatches(w http.ResponseWriter, r *http.Reque
 
 // POST /api/v1/matching/requests/{id}/respond
 func (h *MatchingHandler) HandleRespond(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		httputil.Error(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == "" {
 		httputil.Error(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
-	matchID := extractMatchID(r.URL.Path, "/respond")
-	if matchID == "" {
+	matchID := chi.URLParam(r, "id")
+	if matchID == "" || !uuidRE.MatchString(matchID) {
 		httputil.Error(w, http.StatusNotFound, "not found")
 		return
 	}
@@ -217,7 +204,7 @@ func (h *MatchingHandler) HandleRespond(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	m, err := h.Respond.Respond(usecase.RespondToMatchInput{
+	m, err := h.Respond.Respond(r.Context(), usecase.RespondToMatchInput{
 		MatchID:     matchID,
 		ResponderID: userID,
 		Accept:      body.Accept,
@@ -240,23 +227,19 @@ func (h *MatchingHandler) HandleRespond(w http.ResponseWriter, r *http.Request) 
 
 // DELETE /api/v1/matching/requests/{id}
 func (h *MatchingHandler) HandleCancel(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodDelete {
-		httputil.Error(w, http.StatusMethodNotAllowed, "method not allowed")
-		return
-	}
 	userID := auth.UserIDFromContext(r.Context())
 	if userID == "" {
 		httputil.Error(w, http.StatusUnauthorized, "unauthorized")
 		return
 	}
 
-	matchID := extractMatchID(r.URL.Path, "")
-	if matchID == "" {
+	matchID := chi.URLParam(r, "id")
+	if matchID == "" || !uuidRE.MatchString(matchID) {
 		httputil.Error(w, http.StatusNotFound, "not found")
 		return
 	}
 
-	if err := h.Cancel.Cancel(usecase.CancelMatchInput{
+	if err := h.Cancel.Cancel(r.Context(), usecase.CancelMatchInput{
 		MatchID:     matchID,
 		RequesterID: userID,
 	}); err != nil {
@@ -310,25 +293,7 @@ func candidateToResponse(c domain.MatchCandidate) CandidateResponse {
 		AvatarURL:     c.AvatarURL,
 		CommonCourses: courses,
 		CommonSlots:   slots,
+		SemanticScore: c.SemanticScore,
 		OverallScore:  c.OverallScore,
 	}
-}
-
-func extractMatchID(path, suffix string) string {
-	const base = "/api/v1/matching/requests/"
-	if len(path) <= len(base) {
-		return ""
-	}
-	id := path[len(base):]
-	if suffix != "" {
-		if len(id) <= len(suffix) {
-			return ""
-		}
-		id = id[:len(id)-len(suffix)]
-	}
-
-	if !uuidRE.MatchString(id) {
-		return ""
-	}
-	return id
 }

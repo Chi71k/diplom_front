@@ -2,47 +2,26 @@ package delivery
 
 import (
 	"net/http"
-	"strings"
+
+	"github.com/go-chi/chi/v5"
 
 	"studybuddy/backend/pkg/auth"
 )
 
 func NewRouter(h *MatchingHandler, jwtSecret []byte) http.Handler {
-	protect := auth.Middleware(jwtSecret)
-	mux := http.NewServeMux()
+	r := chi.NewRouter()
 
-	mux.HandleFunc("/health", h.HandleHealth)
+	r.Get("/health", h.HandleHealth)
 
-	mux.Handle(
-		"/api/v1/matching/candidates",
-		protect(http.HandlerFunc(h.HandleListCandidates)),
-	)
+	r.Group(func(r chi.Router) {
+		r.Use(auth.Middleware(jwtSecret))
 
-	mux.Handle(
-		"/api/v1/matching/requests",
-		protect(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			switch r.Method {
-			case http.MethodPost:
-				h.HandleSendRequest(w, r)
-			case http.MethodGet:
-				h.HandleListMatches(w, r)
-			default:
-				w.WriteHeader(http.StatusMethodNotAllowed)
-			}
-		})),
-	)
+		r.Get("/api/v1/matching/candidates", h.HandleListCandidates)
+		r.Post("/api/v1/matching/requests", h.HandleSendRequest)
+		r.Get("/api/v1/matching/requests", h.HandleListMatches)
+		r.Post("/api/v1/matching/requests/{id}/respond", h.HandleRespond)
+		r.Delete("/api/v1/matching/requests/{id}", h.HandleCancel)
+	})
 
-	mux.Handle(
-		"/api/v1/matching/requests/",
-		protect(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			path := r.URL.Path
-			if strings.HasSuffix(path, "/respond") {
-				h.HandleRespond(w, r)
-				return
-			}
-			h.HandleCancel(w, r)
-		})),
-	)
-
-	return mux
+	return r
 }

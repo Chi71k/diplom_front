@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"context"
 	"fmt"
 	"studybuddy/backend/services/availability/domain"
 	"time"
@@ -19,7 +20,7 @@ type CreateSlotOutput struct {
 }
 
 type CreateSlot interface {
-	CreateSlot(input CreateSlotInput) (CreateSlotOutput, error)
+	CreateSlot(ctx context.Context, input CreateSlotInput) (CreateSlotOutput, error)
 }
 
 type createSlot struct {
@@ -30,7 +31,7 @@ func NewCreateSlot(repo SlotRepository) CreateSlot {
 	return &createSlot{repo: repo}
 }
 
-func (s *createSlot) CreateSlot(input CreateSlotInput) (CreateSlotOutput, error) {
+func (s *createSlot) CreateSlot(ctx context.Context, input CreateSlotInput) (CreateSlotOutput, error) {
 	if input.DayOfWeek < 0 || input.DayOfWeek > 6 {
 		return CreateSlotOutput{}, domain.ErrInvalidDayOfWeek
 	}
@@ -62,7 +63,7 @@ func (s *createSlot) CreateSlot(input CreateSlotInput) (CreateSlotOutput, error)
 		return CreateSlotOutput{}, err
 	}
 
-	if err := s.repo.Create(slot); err != nil {
+	if err := s.repo.Create(ctx, slot); err != nil {
 		return CreateSlotOutput{}, err
 	}
 

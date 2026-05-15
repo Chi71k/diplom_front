@@ -29,6 +29,7 @@ type MatchCandidate struct {
 	AvatarURL     string
 	CommonCourses []string
 	CommonSlots   []SlotOverlap
+	SemanticScore float64 // 0-1, cosine similarity (or interest Jaccard when embeddings unavailable)
 	InterestScore float64 // 0-1, overlap in interests
 	AvailScore    float64 // 0-1, overlap in available hours
 	OverallScore  float64 // weighted composite

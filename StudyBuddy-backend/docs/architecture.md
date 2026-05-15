@@ -2,7 +2,7 @@
 
 ## Overview
 
-The backend is split into **microservices**, each following **clean architecture** (domain → use cases → adapters). Services communicate over HTTP; the frontend and mobile app call service APIs (optionally through an API Gateway later).
+The backend is split into **microservices**, each following **clean architecture** (domain → use cases → adapters). Services communicate over HTTP; the frontend and mobile app call service APIs (optionally through an API Gateway later). When using a gateway, route path prefixes per service (e.g. `/api/v1/groups` → **Groups** on `GROUPS_SERVER_PORT`, default 8085).
 
 ## Principles
 
@@ -18,8 +18,9 @@ The backend is split into **microservices**, each following **clean architecture
 | **Auth**    | Register, login, issue/refresh JWT       | Email+password, JWT access/refresh |
 | **Users**   | Profile, interests, universities, degrees| User CRUD, interests, profile      |
 | **Courses** | Course catalog, user–course relation     | Week 3                             |
-| Availability| User availability slots                  | Week 3                             |
+| Availability| User availability slots, study sessions, GCal | Week 3                        |
 | Matching    | Candidates, match requests, invites      | Week 4                             |
+| **Groups**  | Study groups, invites, member suggestions | MVP                                |
 | Reviews     | Reviews and ratings (or under Users)     | Week 5                             |
 | Points      | Point transactions, totals (gamification)| Week 6                             |
 

@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"context"
 	"fmt"
 	"studybuddy/backend/services/matching/domain"
 )
@@ -13,7 +14,7 @@ type ListMatchesInput struct {
 }
 
 type ListMatches interface {
-	List(in ListMatchesInput) ([]domain.Match, error)
+	List(ctx context.Context, in ListMatchesInput) ([]domain.Match, error)
 }
 
 type listMatches struct {
@@ -24,7 +25,7 @@ func NewListMatches(repo MatchRepository) ListMatches {
 	return &listMatches{repo: repo}
 }
 
-func (uc *listMatches) List(in ListMatchesInput) ([]domain.Match, error) {
+func (uc *listMatches) List(ctx context.Context, in ListMatchesInput) ([]domain.Match, error) {
 	limit := in.Limit
 	if limit <= 0 {
 		limit = 20
@@ -34,7 +35,7 @@ func (uc *listMatches) List(in ListMatchesInput) ([]domain.Match, error) {
 		offset = 0
 	}
 
-	matches, err := uc.repo.ListForUser(in.UserID, ListMatchesFilter{
+	matches, err := uc.repo.ListForUser(ctx, in.UserID, ListMatchesFilter{
 		Status: in.Status,
 		Limit:  limit,
 		Offset: offset,

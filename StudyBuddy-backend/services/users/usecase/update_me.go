@@ -1,6 +1,10 @@
 package usecase
 
 import (
+	"context"
+	"log"
+
+	"studybuddy/backend/pkg/embedding"
 	"studybuddy/backend/services/users/domain"
 )
 
@@ -15,20 +19,21 @@ type UpdateMeInput struct {
 
 // UpdateMe updates the profile for the given user ID.
 type UpdateMe interface {
-	UpdateMe(in UpdateMeInput) (*domain.Profile, error)
+	UpdateMe(ctx context.Context, in UpdateMeInput) (*domain.Profile, error)
 }
 
 type updateMe struct {
-	repo ProfileRepository
+	repo  ProfileRepository
+	cache embedding.Cache
 }
 
 // NewUpdateMe creates the UpdateMe use case.
-func NewUpdateMe(repo ProfileRepository) UpdateMe {
-	return &updateMe{repo: repo}
+func NewUpdateMe(repo ProfileRepository, cache embedding.Cache) UpdateMe {
+	return &updateMe{repo: repo, cache: cache}
 }
 
-func (u *updateMe) UpdateMe(in UpdateMeInput) (*domain.Profile, error) {
-	existing, err := u.repo.GetByUserID(in.UserID)
+func (u *updateMe) UpdateMe(ctx context.Context, in UpdateMeInput) (*domain.Profile, error) {
+	existing, err := u.repo.GetByUserID(ctx, in.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -53,8 +58,17 @@ func (u *updateMe) UpdateMe(in UpdateMeInput) (*domain.Profile, error) {
 	if in.AvatarURL != nil {
 		profile.AvatarURL = *in.AvatarURL
 	}
-	if err := u.repo.Upsert(profile); err != nil {
+	if err := u.repo.Upsert(ctx, profile); err != nil {
 		return nil, err
 	}
-	return u.repo.GetByUserID(in.UserID)
+	out, err := u.repo.GetByUserID(ctx, in.UserID)
+	if err != nil {
+		return nil, err
+	}
+	if u.cache != nil {
+		if err := u.cache.Delete(ctx, in.UserID); err != nil {
+			log.Printf("embedding cache invalidate after profile update: %v", err)
+		}
+	}
+	return out, nil
 }
