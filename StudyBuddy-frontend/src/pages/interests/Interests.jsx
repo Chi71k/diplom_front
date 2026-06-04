@@ -15,7 +15,7 @@ export default function Interests() {
             .then(([all, my]) => {
                 if (canceled) return
                 setCatalog(all.items ?? [])
-                setSelected(new Set((my.items ?? []).map(i => i.ID)))
+                setSelected(new Set((my.items ?? []).map(i => i.id)))
             })
             .catch(() => { toast.error('Failed to load interests') })
             .finally(() => { if (!canceled) setLoading(false) })
@@ -25,7 +25,8 @@ export default function Interests() {
     function toggle(id) {
         setSelected((prev) => {
             const next = new Set(prev)
-            next.has(id) ? next.delete(id) : next.add(id)
+            if (next.has(id)) next.delete(id)
+            else next.add(id)
             return next
         })
     }
@@ -71,12 +72,12 @@ export default function Interests() {
                 <div className="interests-grid">
                     {catalog.map((item) => (
                       <button
-                        key={item.ID}
+                        key={item.id}
                         type="button"
-                        className={`interest-chip ${selected.has(item.ID) ? 'selected' : ''}`}
-                        onClick={() => toggle(item.ID)}
-                        >
-                        {item.Name}
+                        className={`interest-chip ${selected.has(item.id) ? 'selected' : ''}`}
+                        onClick={() => toggle(item.id)}
+                      >
+                        {item.name}
                       </button>
                     ))}
                 </div>

@@ -3,12 +3,14 @@ package delivery
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 
 	"studybuddy/backend/pkg/auth"
 	"studybuddy/backend/pkg/httputil"
@@ -44,9 +46,11 @@ func (h *PointsHandler) HandlePostEvent(w http.ResponseWriter, r *http.Request) 
 	}
 	var req postPointsEventRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		_, _ = io.Copy(io.Discard, r.Body)
 		httputil.Error(w, http.StatusBadRequest, "invalid body")
 		return
 	}
+	_, _ = io.Copy(io.Discard, r.Body)
 	if strings.TrimSpace(req.UserID) == "" {
 		httputil.Error(w, http.StatusBadRequest, "missing userId")
 		return
@@ -170,6 +174,10 @@ func (h *PointsHandler) HandleGetPublicUserPoints(w http.ResponseWriter, r *http
 	userID := chi.URLParam(r, "userID")
 	if userID == "" {
 		httputil.Error(w, http.StatusBadRequest, "missing user id")
+		return
+	}
+	if _, err := uuid.Parse(userID); err != nil {
+		httputil.Error(w, http.StatusBadRequest, "invalid userID: must be a valid UUID")
 		return
 	}
 	total, err := h.GetPublicTotal.GetUserPointsTotal(r.Context(), userID)

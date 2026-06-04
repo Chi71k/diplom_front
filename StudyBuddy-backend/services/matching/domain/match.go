@@ -22,17 +22,19 @@ type Match struct {
 }
 
 type MatchCandidate struct {
-	UserID        string
-	FirstName     string
-	LastName      string
-	Bio           string
-	AvatarURL     string
-	CommonCourses []string
-	CommonSlots   []SlotOverlap
-	SemanticScore float64 // 0-1, cosine similarity (or interest Jaccard when embeddings unavailable)
-	InterestScore float64 // 0-1, overlap in interests
-	AvailScore    float64 // 0-1, overlap in available hours
-	OverallScore  float64 // weighted composite
+	UserID             string
+	FirstName          string
+	LastName           string
+	Bio                string
+	AvatarURL          string
+	CommonCourses      []string
+	CommonSlots        []SlotOverlap
+	SemanticScore      float64 // 0-1, cosine similarity of stored embeddings
+	AvailScore         float64 // 0-1, temporal overlap ratio
+	CourseScore        float64 // 0-1, shared courses proportion (Jaccard)
+	ReputationScore    float64 // 0-1, normalised peer rating
+	MutualFriendsScore float64 // 0-1, normalised mutual friend count
+	OverallScore       float64 // weighted composite
 }
 
 type SlotOverlap struct {

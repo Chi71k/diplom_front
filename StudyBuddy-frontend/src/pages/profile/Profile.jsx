@@ -8,13 +8,6 @@ import {
 } from '../../api'
 import { avatarColor } from '../../utils/avatar'
 
-const levelEmoji = (level) => {
-  if (!level) return '📘'
-  const l = level.toLowerCase()
-  if (l.includes('beginner') || l.includes('intro')) return '🌱'
-  if (l.includes('advanced') || l.includes('expert')) return '🔥'
-  return '📘'
-}
 
 const Profile = () => {
   const navigate = useNavigate()
@@ -27,6 +20,16 @@ const Profile = () => {
   const [saving, setSaving] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [avatarError, setAvatarError] = useState(false)
+  const [idCopied, setIdCopied] = useState(false)
+
+  const copyMyId = async () => {
+    try {
+      await navigator.clipboard.writeText(profile.id)
+      setIdCopied(true)
+      toast.success('Your ID copied!')
+      setTimeout(() => setIdCopied(false), 2000)
+    } catch { toast.error('Copy failed') }
+  }
   const [interests, setInterests] = useState([])
   const [myCourses, setMyCourses] = useState([])
   const [courseCount, setCourseCount] = useState(null)
@@ -164,6 +167,31 @@ const Profile = () => {
           </div>
         )}
 
+        {/* My ID — for sharing with others for group invites */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: 12, margin: '12px 0 4px',
+          padding: '10px 14px', borderRadius: 10,
+          background: 'var(--bg)', border: '1px solid var(--border)',
+        }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 2 }}>
+              My ID
+            </div>
+            <div style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--text)', wordBreak: 'break-all' }}>
+              {profile.id}
+            </div>
+          </div>
+          <button
+            type="button"
+            className={`btn btn-sm ${idCopied ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ flexShrink: 0 }}
+            onClick={copyMyId}
+          >
+            {idCopied ? '✓ Copied' : 'Copy ID'}
+          </button>
+        </div>
+
         <div className="profile-stats-row">
           <Link to="/interests" className="profile-stat">
             <div className="profile-stat-val">{interests.length}</div>
@@ -227,7 +255,7 @@ const Profile = () => {
           {interests.length > 0
             ? <div className="chips-row">
                 {interests.map((i) => (
-                  <span key={i.ID} className="chip chip-int">{i.Name}</span>
+                  <span key={i.id} className="chip chip-int">{i.name}</span>
                 ))}
               </div>
             : <p style={{ color: 'var(--muted)', fontSize: '15px' }}>
@@ -258,7 +286,6 @@ const Profile = () => {
               </p>
             : myCourses.slice(0, 5).map((c) => (
                 <div key={c.id} className="course-row">
-                  <div className="course-icon">{levelEmoji(c.level)}</div>
                   <div className="course-row-info">
                     <div className="course-row-title">{c.title}</div>
                     <div className="course-row-meta">

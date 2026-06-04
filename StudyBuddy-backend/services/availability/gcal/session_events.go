@@ -56,12 +56,8 @@ func UpsertSessionEvent(provider *pkggcal.Provider, ctx context.Context, conn *d
 		},
 		Description: desc,
 		Reminders: &calendar.EventReminders{
-			UseDefault: false,
-			Overrides: []*calendar.EventReminder{
-				{Method: "popup", Minutes: 60},
-				{Method: "popup", Minutes: 10},
-				{Method: "email", Minutes: 1440},
-			},
+			UseDefault:      true,
+			ForceSendFields: []string{"UseDefault"},
 		},
 	}
 

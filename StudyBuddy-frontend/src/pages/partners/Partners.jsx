@@ -80,7 +80,15 @@ const Partners = () => {
               </div>
 
               <div className="req-card-info">
-                <div className="req-card-name">{partner.firstName} {partner.lastName}</div>
+                <Link
+                  to={`/users/${partner.id}`}
+                  className="req-card-name"
+                  style={{ color: 'var(--text)', textDecoration: 'none' }}
+                  onMouseEnter={(e) => e.currentTarget.style.color = 'var(--primary)'}
+                  onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text)'}
+                >
+                  {partner.firstName} {partner.lastName}
+                </Link>
                 <div className="req-card-role">
                   Partners since {fmt(request.updatedAt ?? request.createdAt)}
                 </div>

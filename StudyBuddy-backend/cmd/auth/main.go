@@ -8,9 +8,13 @@ import (
 	"os"
 	authjwt "studybuddy/backend/pkg/auth"
 	"studybuddy/backend/pkg/db"
+	"studybuddy/backend/pkg/embedding"
+	"studybuddy/backend/pkg/gemini"
 	"studybuddy/backend/services/auth/delivery"
 	"studybuddy/backend/services/auth/repository"
 	"studybuddy/backend/services/auth/usecase"
+	usersrepo "studybuddy/backend/services/users/repository"
+	usersuc "studybuddy/backend/services/users/usecase"
 	"time"
 )
 
@@ -36,7 +40,23 @@ func main() {
 	}
 	defer pool.Close()
 
+	geminiKey := getEnv("GEMINI_API_KEY", "")
 	userRepo := repository.NewPgUserRepository(pool)
+	profileRepo := usersrepo.NewPgProfileRepository(pool)
+	embCache := embedding.NewPgCache(pool)
+
+	var embedder gemini.Embedder = gemini.NoOpEmbedder{}
+	if geminiKey != "" {
+		e, err := gemini.NewEmbedder(geminiKey)
+		if err != nil {
+			log.Fatalf("gemini embedder: %v", err)
+		}
+		embedder = e
+	} else {
+		log.Print("GEMINI_API_KEY not set: semantic scoring will use neutral fallback (0.5) for all users")
+	}
+	embeddingRegenerator := usersuc.NewEmbeddingRegenerator(profileRepo, embedder, profileRepo, embCache)
+
 	hasher := usecase.PasswordAdapter{}
 	jwtAdapter := usecase.JWTAdapter{
 		Config: authjwt.Config{
@@ -47,7 +67,10 @@ func main() {
 		},
 	}
 
-	registerUC := usecase.NewRegister(userRepo, hasher, jwtAdapter)
+	embedHook := &usecase.EmbeddingHookAdapter{
+		Regenerate: embeddingRegenerator.RegenerateAsync,
+	}
+	registerUC := usecase.NewRegister(userRepo, hasher, jwtAdapter, embedHook)
 	loginUC := usecase.NewLogin(userRepo, hasher, jwtAdapter)
 	refreshUC := usecase.NewRefresh(userRepo, jwtAdapter)
 

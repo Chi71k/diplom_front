@@ -121,6 +121,24 @@ StudyBuddy-backend/
 - [Architecture](docs/architecture.md) — services, boundaries, clean architecture
 - [OpenAPI](docs/openapi/) — API contract (align with frontend/mobile)
 
+## Embedding Backfill
+
+After running migration `000016`, existing users have no embedding vector. Run the backfill tool once to populate them:
+
+```bash
+GEMINI_API_KEY=your-key \
+DATABASE_URL=your-db-url \
+go run ./cmd/backfill_embeddings/main.go
+```
+
+Or via Docker Compose:
+
+```bash
+docker compose --profile tools run --rm backfill
+```
+
+Users who register or update their profile after migration are handled automatically — no backfill needed for new users.
+
 ## License
 
 Diploma project — internal use.

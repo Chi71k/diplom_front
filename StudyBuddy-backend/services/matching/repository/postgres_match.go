@@ -58,7 +58,7 @@ FROM matches
 WHERE id = $1;
 `
 	m, err := scanMatch(r.pool.QueryRow(ctx, q, id))
-	if errors.Is(err, pgx.ErrNoRows) || isInvalidUUID(err) {
+	if errors.Is(err, pgx.ErrNoRows) || (err != nil && isInvalidUUID(err)) {
 		return nil, nil
 	}
 	return m, err
@@ -80,7 +80,7 @@ WHERE (
 LIMIT 1;
 `
 	m, err := scanMatch(r.pool.QueryRow(ctx, q, userA, userB))
-	if errors.Is(err, pgx.ErrNoRows) || isInvalidUUID(err) {
+	if errors.Is(err, pgx.ErrNoRows) || (err != nil && isInvalidUUID(err)) {
 		return nil, nil
 	}
 	return m, err

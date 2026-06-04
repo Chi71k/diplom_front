@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"log"
 	"net/http"
 	"time"
@@ -19,17 +20,18 @@ import (
 
 // AvailabilityHandler exposes all availability HTTP endpoints.
 type AvailabilityHandler struct {
-	ListSlots      usecase.ListSlots
-	CreateSlot     usecase.CreateSlot
-	DeleteSlot     usecase.DeleteSlot
-	GCalConnect    usecase.GCalConnect
-	GCalImport     usecase.GCalImport
-	GCalDisconnect usecase.GCalDisconnect
-	ProposeSession usecase.ProposeSession
-	ConfirmSession usecase.ConfirmSession
-	CancelSession  usecase.CancelSession
-	ListMySessions usecase.ListMySessions
-	GetSession     usecase.GetSession
+	ListSlots           usecase.ListSlots
+	CreateSlot          usecase.CreateSlot
+	DeleteSlot          usecase.DeleteSlot
+	GCalConnect         usecase.GCalConnect
+	GCalImport          usecase.GCalImport
+	GCalDisconnect      usecase.GCalDisconnect
+	ProposeSession      usecase.ProposeSession
+	ConfirmSession      usecase.ConfirmSession
+	CancelSession       usecase.CancelSession
+	ListMySessions      usecase.ListMySessions
+	GetSession          usecase.GetSession
+	ExportSessionToGCal usecase.ExportSessionToGCal
 }
 
 // request / response shapes
@@ -99,9 +101,11 @@ func (h *AvailabilityHandler) HandleCreateSlot(w http.ResponseWriter, r *http.Re
 
 	var req CreateSlotRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		_, _ = io.Copy(io.Discard, r.Body)
 		httputil.Error(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
+	_, _ = io.Copy(io.Discard, r.Body)
 
 	if req.StartTime == "" || req.EndTime == "" || req.Timezone == "" {
 		httputil.Error(w, http.StatusBadRequest, "startTime, endTime, timezone are required")
@@ -302,6 +306,8 @@ func (h *AvailabilityHandler) HandleGCalDisconnect(w http.ResponseWriter, r *htt
 	// Body is optional — if absent or malformed we use the safe default (keep slots).
 	var req DisconnectRequest
 	_ = json.NewDecoder(r.Body).Decode(&req) // intentionally ignoring decode error
+	// Drain any remainder so the server can complete the response cleanly (HTTP/1.1 keep-alive).
+	_, _ = io.Copy(io.Discard, r.Body)
 
 	if err := h.GCalDisconnect.Disconnect(r.Context(), usecase.GCalDisconnectInput{
 		UserID:              userID,
@@ -357,9 +363,11 @@ func (h *AvailabilityHandler) HandleProposeSession(w http.ResponseWriter, r *htt
 	}
 	var body proposeSessionBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		_, _ = io.Copy(io.Discard, r.Body)
 		httputil.Error(w, http.StatusBadRequest, "invalid body")
 		return
 	}
+	_, _ = io.Copy(io.Discard, r.Body)
 	start, err := time.Parse(time.RFC3339, body.StartTime)
 	if err != nil {
 		httputil.Error(w, http.StatusBadRequest, "invalid startTime")
@@ -441,6 +449,41 @@ func (h *AvailabilityHandler) HandleConfirmSession(w http.ResponseWriter, r *htt
 		return
 	}
 	httputil.JSON(w, http.StatusOK, sessionToResponse(s))
+}
+
+// HandleExportSessionToGCal POST /api/v1/availability/sessions/{id}/export-to-gcal
+func (h *AvailabilityHandler) HandleExportSessionToGCal(w http.ResponseWriter, r *http.Request) {
+	userID := auth.UserIDFromContext(r.Context())
+	if userID == "" {
+		httputil.Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+	id := chi.URLParam(r, "id")
+	if _, err := uuid.Parse(id); err != nil {
+		httputil.Error(w, http.StatusBadRequest, "invalid session id")
+		return
+	}
+
+	out, err := h.ExportSessionToGCal.Execute(r.Context(), userID, id)
+	if err != nil {
+		switch {
+		case errors.Is(err, domain.ErrSessionNotFound):
+			httputil.Error(w, http.StatusNotFound, "session not found")
+		case errors.Is(err, domain.ErrSessionNotConfirmed):
+			httputil.Error(w, http.StatusBadRequest, "session must be confirmed before exporting to google calendar")
+		case errors.Is(err, domain.ErrNotParticipant):
+			httputil.Error(w, http.StatusForbidden, err.Error())
+		case errors.Is(err, domain.ErrGCalNotConnected):
+			httputil.Error(w, http.StatusBadRequest, "google calendar not connected")
+		case errors.Is(err, domain.ErrGCalSyncDisabled):
+			httputil.Error(w, http.StatusBadRequest, "google calendar sync is disabled for your account")
+		default:
+			log.Printf("HandleExportSessionToGCal: %v", err)
+			httputil.Error(w, http.StatusInternalServerError, "failed to export session to google calendar")
+		}
+		return
+	}
+	httputil.JSON(w, http.StatusOK, map[string]string{"gcal_event_id": out.GCalEventID})
 }
 
 func (h *AvailabilityHandler) HandleCancelSession(w http.ResponseWriter, r *http.Request) {

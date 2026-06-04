@@ -86,11 +86,11 @@ const Groups = () => {
                     )}
                     <div style={{ display: 'flex', gap: '10px', marginTop: '6px', flexWrap: 'wrap' }}>
                       <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
-                        👤 {memberCount} member{memberCount !== 1 ? 's' : ''}
+                        {memberCount} member{memberCount !== 1 ? 's' : ''}
                       </span>
                       {courseCount > 0 && (
                         <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
-                          📚 {courseCount} course{courseCount !== 1 ? 's' : ''}
+                          {courseCount} course{courseCount !== 1 ? 's' : ''}
                         </span>
                       )}
                     </div>

@@ -10,11 +10,12 @@ import (
 
 // UpdateMeInput for partial profile update.
 type UpdateMeInput struct {
-	UserID    string
-	FirstName *string
-	LastName  *string
-	Bio       *string
-	AvatarURL *string
+	UserID      string
+	FirstName   *string
+	LastName    *string
+	Bio         *string
+	AvatarURL   *string
+	TelegramTag *string
 }
 
 // UpdateMe updates the profile for the given user ID.
@@ -23,13 +24,14 @@ type UpdateMe interface {
 }
 
 type updateMe struct {
-	repo  ProfileRepository
-	cache embedding.Cache
+	repo        ProfileRepository
+	cache       embedding.Cache
+	regenerator EmbeddingRegenerator
 }
 
 // NewUpdateMe creates the UpdateMe use case.
-func NewUpdateMe(repo ProfileRepository, cache embedding.Cache) UpdateMe {
-	return &updateMe{repo: repo, cache: cache}
+func NewUpdateMe(repo ProfileRepository, cache embedding.Cache, regenerator EmbeddingRegenerator) UpdateMe {
+	return &updateMe{repo: repo, cache: cache, regenerator: regenerator}
 }
 
 func (u *updateMe) UpdateMe(ctx context.Context, in UpdateMeInput) (*domain.Profile, error) {
@@ -43,6 +45,7 @@ func (u *updateMe) UpdateMe(ctx context.Context, in UpdateMeInput) (*domain.Prof
 		profile.LastName = existing.LastName
 		profile.Bio = existing.Bio
 		profile.AvatarURL = existing.AvatarURL
+		profile.TelegramTag = existing.TelegramTag
 		profile.Email = existing.Email
 		profile.CreatedAt = existing.CreatedAt
 	}
@@ -58,6 +61,9 @@ func (u *updateMe) UpdateMe(ctx context.Context, in UpdateMeInput) (*domain.Prof
 	if in.AvatarURL != nil {
 		profile.AvatarURL = *in.AvatarURL
 	}
+	if in.TelegramTag != nil {
+		profile.TelegramTag = *in.TelegramTag
+	}
 	if err := u.repo.Upsert(ctx, profile); err != nil {
 		return nil, err
 	}
@@ -69,6 +75,9 @@ func (u *updateMe) UpdateMe(ctx context.Context, in UpdateMeInput) (*domain.Prof
 		if err := u.cache.Delete(ctx, in.UserID); err != nil {
 			log.Printf("embedding cache invalidate after profile update: %v", err)
 		}
+	}
+	if u.regenerator != nil {
+		u.regenerator.RegenerateAsync(in.UserID)
 	}
 	return out, nil
 }

@@ -3,13 +3,6 @@ import { Link } from 'react-router-dom'
 import { apiListCourses } from '../../api'
 import { useAuth } from '../../context/useAuth'
 
-const levelEmoji = (level) => {
-  if (!level) return '📘'
-  const l = level.toLowerCase()
-  if (l.includes('beginner') || l.includes('intro')) return '🌱'
-  if (l.includes('advanced') || l.includes('expert')) return '🔥'
-  return '📘'
-}
 
 const CourseList = () => {
   const { profile } = useAuth()
@@ -79,7 +72,6 @@ const CourseList = () => {
 
         {!loading && courses.map((c) => (
           <Link key={c.id} to={`/courses/${c.id}`} className="course-item" style={{ display: 'flex', textDecoration: 'none' }}>
-            <div className="course-item-icon">{levelEmoji(c.level)}</div>
             <div className="course-item-info">
               <div className="course-item-title">{c.title}</div>
               <div className="course-item-meta">

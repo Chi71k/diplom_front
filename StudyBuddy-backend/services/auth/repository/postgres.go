@@ -24,9 +24,13 @@ func NewPgUserRepository(pool *pgxpool.Pool) usecase.UserRepository {
 
 func (r *PgUserRepository) Create(ctx context.Context, user *domain.User) error {
 	// Let DB generate id and timestamps.
+	role := user.Role
+	if role == "" {
+		role = domain.RoleStudent
+	}
 	const q = `
-INSERT INTO users (email, password_hash, first_name, last_name, is_active)
-VALUES ($1, $2, $3, $4, $5)
+INSERT INTO users (email, password_hash, first_name, last_name, role, is_active)
+VALUES ($1, $2, $3, $4, $5, $6)
 RETURNING id, created_at, updated_at;
 `
 	err := r.pool.QueryRow(ctx, q,
@@ -34,6 +38,7 @@ RETURNING id, created_at, updated_at;
 		user.PasswordHash,
 		user.FirstName,
 		user.LastName,
+		role,
 		user.IsActive,
 	).Scan(&user.ID, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
@@ -48,7 +53,7 @@ RETURNING id, created_at, updated_at;
 
 func (r *PgUserRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
 	const q = `
-SELECT id, email, password_hash, first_name, last_name, is_active, created_at, updated_at
+SELECT id, email, password_hash, first_name, last_name, role, is_active, created_at, updated_at
 FROM users
 WHERE email = $1;
 `
@@ -59,6 +64,7 @@ WHERE email = $1;
 		&u.PasswordHash,
 		&u.FirstName,
 		&u.LastName,
+		&u.Role,
 		&u.IsActive,
 		&u.CreatedAt,
 		&u.UpdatedAt,
@@ -74,7 +80,7 @@ WHERE email = $1;
 
 func (r *PgUserRepository) GetByID(ctx context.Context, id string) (*domain.User, error) {
 	const q = `
-SELECT id, email, password_hash, first_name, last_name, is_active, created_at, updated_at
+SELECT id, email, password_hash, first_name, last_name, role, is_active, created_at, updated_at
 FROM users
 WHERE id = $1;
 `
@@ -85,6 +91,7 @@ WHERE id = $1;
 		&u.PasswordHash,
 		&u.FirstName,
 		&u.LastName,
+		&u.Role,
 		&u.IsActive,
 		&u.CreatedAt,
 		&u.UpdatedAt,

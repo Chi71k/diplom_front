@@ -15,6 +15,9 @@ var (
 // RoleService is the internal service caller role (see MintServiceToken).
 const RoleService = "service"
 
+// RoleAdmin is the platform administrator role for end-user JWTs.
+const RoleAdmin = "admin"
+
 // Claims holds JWT claims (access or refresh).
 type Claims struct {
 	jwt.RegisteredClaims
@@ -33,7 +36,7 @@ type Config struct {
 }
 
 // IssuePair returns access and refresh tokens for the user.
-func IssuePair(cfg Config, userID, email string) (access, refresh string, expAt time.Time, err error) {
+func IssuePair(cfg Config, userID, email, role string) (access, refresh string, expAt time.Time, err error) {
 	now := time.Now()
 	expAt = now.Add(cfg.AccessTTL)
 	accessClaims := Claims{
@@ -46,6 +49,7 @@ func IssuePair(cfg Config, userID, email string) (access, refresh string, expAt 
 		},
 		UserID:    userID,
 		Email:     email,
+		Role:      role,
 		IsRefresh: false,
 	}
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
@@ -64,6 +68,7 @@ func IssuePair(cfg Config, userID, email string) (access, refresh string, expAt 
 		},
 		UserID:    userID,
 		Email:     email,
+		Role:      role,
 		IsRefresh: true,
 	}
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)

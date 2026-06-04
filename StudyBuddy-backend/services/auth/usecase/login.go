@@ -47,7 +47,11 @@ func (u *login) Login(ctx context.Context, in LoginInput) (LoginOutput, error) {
 	if !u.hasher.Compare(user.PasswordHash, in.Password) {
 		return LoginOutput{}, domain.ErrInvalidCreds
 	}
-	access, refresh, expAt, err := u.jwt.IssuePair(user.ID, user.Email)
+	role := user.Role
+	if role == "" {
+		role = domain.RoleStudent
+	}
+	access, refresh, expAt, err := u.jwt.IssuePair(user.ID, user.Email, role)
 	if err != nil {
 		return LoginOutput{}, err
 	}

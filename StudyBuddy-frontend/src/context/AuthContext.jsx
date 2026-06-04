@@ -3,6 +3,16 @@ import { getToken } from '../api'
 
 const AuthContext = createContext(null)
 
+function decodeJwtRole(token) {
+  if (!token) return null
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
+    return payload.role || null
+  } catch {
+    return null
+  }
+}
+
 export function AuthProvider({ children }) {
   const [token, setTokenState] = useState(() => getToken())
   const [profile, setProfile] = useState(null)
@@ -13,10 +23,13 @@ export function AuthProvider({ children }) {
       setTokenState(newToken)
     } else {
       localStorage.removeItem('accessToken')
+      localStorage.removeItem('refreshToken')
       setTokenState(null)
       setProfile(null)
     }
   }, [])
+
+  const role = decodeJwtRole(token)
 
   const value = {
     token,
@@ -24,6 +37,8 @@ export function AuthProvider({ children }) {
     profile,
     setProfile,
     isAuthenticated: !!token,
+    role,
+    isAdmin: role === 'admin',
   }
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

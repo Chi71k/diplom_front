@@ -24,7 +24,17 @@ import GroupDetail from './pages/groups/GroupDetail'
 import Sessions from './pages/sessions/Sessions'
 import Points from './pages/points/Points'
 import Reviews from './pages/reviews/Reviews'
+import AdminUsers from './pages/admin/AdminUsers'
+import AdminStats from './pages/admin/AdminStats'
+import Match from './pages/match/Match'
+import Study from './pages/study/Study'
+import UserProfile from './pages/users/UserProfile'
 
+
+function RequireAdmin({ children }) {
+  const { isAdmin } = useAuth()
+  return isAdmin ? children : <Navigate to="/profile" replace />
+}
 
 function AppRoutes() {
   const { token, setToken, setProfile } = useAuth()
@@ -89,6 +99,11 @@ function AppRoutes() {
         <Route path="courses/:id" element={<CourseDetail />} />
         <Route path="courses/:id/edit" element={<CourseForm edit />} />
         <Route path="interests" element={<Interests />} />
+        {/* New consolidated routes */}
+        <Route path="match" element={<Match />} />
+        <Route path="study" element={<Study />} />
+
+        {/* Legacy routes — keep working for deep links */}
         <Route path="matching/candidates" element={<Candidates />} />
         <Route path="matching/requests" element={<Requests />} />
         <Route path="availability" element={<Availability />} />
@@ -100,6 +115,10 @@ function AppRoutes() {
         <Route path="sessions" element={<Sessions />} />
         <Route path="points" element={<Points />} />
         <Route path="reviews" element={<Reviews />} />
+        <Route path="users/:id" element={<UserProfile />} />
+        <Route path="admin/users" element={<RequireAdmin><AdminUsers /></RequireAdmin>} />
+        <Route path="admin/stats" element={<RequireAdmin><AdminStats /></RequireAdmin>} />
+        <Route path="admin" element={<RequireAdmin><Navigate to="/admin/users" replace /></RequireAdmin>} />
       </Route>
       <Route path="*" element={<Navigate to={token ? '/profile' : '/login'} replace />} />
     </Routes>

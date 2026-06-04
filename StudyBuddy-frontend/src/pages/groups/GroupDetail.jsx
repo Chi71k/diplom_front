@@ -8,10 +8,10 @@ import {
   apiInviteMember,
   apiRemoveMember,
   apiGetGroupSuggestions,
+  apiGetUserById,
+  apiListCourses,
 } from '../../api'
 import { avatarColor } from '../../utils/avatar'
-
-const shortId = (id) => id?.slice(0, 8) ?? '?'
 
 const roleColors = {
   owner:  { bg: '#eff6ff', color: '#2563eb' },
@@ -25,11 +25,13 @@ const GroupDetail = () => {
   const toast    = useToast()
   const { profile } = useAuth()
 
-  const [group, setGroup]           = useState(null)
+  const [group, setGroup]             = useState(null)
   const [suggestions, setSuggestions] = useState([])
-  const [loading, setLoading]       = useState(true)
-  const [inviteId, setInviteId]     = useState('')
-  const [acting, setActing]         = useState(null)
+  const [memberProfiles, setMemberProfiles] = useState({}) // userId → profile
+  const [courseMap, setCourseMap]     = useState({})       // courseId → course
+  const [loading, setLoading]         = useState(true)
+  const [inviteId, setInviteId]       = useState('')
+  const [acting, setActing]           = useState(null)
 
   const load = async () => {
     setLoading(true)
@@ -40,6 +42,25 @@ const GroupDetail = () => {
       ])
       setGroup(g)
       setSuggestions(s.items ?? [])
+
+      // Fetch member profiles in parallel
+      if (g.members?.length) {
+        const results = await Promise.allSettled(g.members.map((m) => apiGetUserById(m.userId)))
+        const map = {}
+        g.members.forEach((m, i) => {
+          if (results[i].status === 'fulfilled') map[m.userId] = results[i].value
+        })
+        setMemberProfiles(map)
+      }
+
+      // Fetch course names
+      if (g.courseIds?.length) {
+        const allCourses = await apiListCourses({ limit: 200 }).catch(() => [])
+        const courses = Array.isArray(allCourses) ? allCourses : []
+        const map = {}
+        courses.forEach((c) => { map[c.id] = c })
+        setCourseMap(map)
+      }
     } catch (e) {
       toast.error(e.error || 'Failed to load group')
     } finally {
@@ -124,7 +145,7 @@ const GroupDetail = () => {
                 alignItems: 'center', justifyContent: 'center',
                 fontSize: '20px', flexShrink: 0,
               }}>
-                👥
+                {group.name?.[0]?.toUpperCase() ?? 'G'}
               </div>
               <div>
                 <div className="requests-title" style={{ marginBottom: 0 }}>{group.name}</div>
@@ -136,7 +157,9 @@ const GroupDetail = () => {
             {group.courseIds?.length > 0 && (
               <div style={{ marginTop: '10px', display: 'flex', flexWrap: 'wrap', gap: '6px', paddingLeft: '52px' }}>
                 {group.courseIds.map((cid) => (
-                  <span key={cid} className="chip chip-course">{cid.slice(0, 8)}</span>
+                  <span key={cid} className="chip chip-course">
+                    {courseMap[cid]?.title ?? cid.slice(0, 8) + '…'}
+                  </span>
                 ))}
               </div>
             )}
@@ -157,49 +180,53 @@ const GroupDetail = () => {
           </div>
 
           {group.members?.map((m) => {
-            const isMe = m.userId === profile?.id
-            const initials = m.userId?.[0]?.toUpperCase() ?? '?'
+            const isMe      = m.userId === profile?.id
+            const p         = memberProfiles[m.userId]
+            const name      = p ? `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim() : null
+            const initial   = (p?.firstName?.[0] || m.userId?.[0] || '?').toUpperCase()
             const roleStyle = roleColors[m.role] ?? roleColors.member
+
             return (
               <div
                 key={m.userId}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '10px 0',
-                  borderBottom: '1px solid var(--border)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '10px 0', borderBottom: '1px solid var(--border)',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <div
                     className="avatar"
-                    style={{ width: '36px', height: '36px', fontSize: '14px', background: avatarColor(m.userId) }}
+                    style={{ width: '38px', height: '38px', fontSize: '14px', background: avatarColor(p?.firstName || m.userId), flexShrink: 0 }}
                   >
-                    {initials}
+                    {p?.avatarUrl ? <img src={p.avatarUrl} alt="" /> : initial}
                   </div>
                   <div>
-                    <span style={{ fontSize: '14px', fontWeight: 500 }}>
-                      {isMe ? 'You' : shortId(m.userId)}
-                      {isMe && (
-                        <span style={{ fontSize: '11px', color: 'var(--muted)', marginLeft: '6px' }}>
-                          ({shortId(m.userId)}…)
-                        </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      {isMe ? (
+                        <span style={{ fontSize: '14px', fontWeight: 600 }}>You</span>
+                      ) : (
+                        <Link
+                          to={`/users/${m.userId}`}
+                          style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)', textDecoration: 'none' }}
+                          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--primary)'}
+                          onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text)'}
+                        >
+                          {name || m.userId.slice(0, 8) + '…'}
+                        </Link>
                       )}
-                    </span>
-                    <span
-                      style={{
-                        marginLeft: '8px',
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        padding: '2px 7px',
-                        borderRadius: '5px',
-                        background: roleStyle.bg,
-                        color: roleStyle.color,
-                      }}
-                    >
-                      {m.role}
-                    </span>
+                      <span style={{
+                        fontSize: '11px', fontWeight: 600, padding: '2px 7px', borderRadius: '5px',
+                        background: roleStyle.bg, color: roleStyle.color,
+                      }}>
+                        {m.role}
+                      </span>
+                    </div>
+                    {p?.bio && (
+                      <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '2px' }}>
+                        {p.bio.length > 60 ? p.bio.slice(0, 60) + '…' : p.bio}
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -243,8 +270,8 @@ const GroupDetail = () => {
         {/* AI suggestions */}
         {suggestions.length > 0 && (
           <div style={{ borderTop: '1px solid var(--border)', padding: '16px 20px' }}>
-            <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>✨</span> AI-suggested members
+            <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '12px' }}>
+              AI-suggested members
             </div>
             {suggestions.map((s) => (
               <div key={s.userId} className="cand-card">

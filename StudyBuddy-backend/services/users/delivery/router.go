@@ -10,7 +10,7 @@ import (
 
 // NewRouter returns the users service HTTP router.
 // JWT secret must match the Auth service secret.
-func NewRouter(h *UsersHandler, ih *InterestsHandler, fh *FriendsHandler, jwtSecret []byte) http.Handler {
+func NewRouter(h *UsersHandler, ih *InterestsHandler, fh *FriendsHandler, ah *AdminHandler, jwtSecret []byte) http.Handler {
 	r := chi.NewRouter()
 
 	r.Get("/health", h.HandleHealth)
@@ -21,6 +21,7 @@ func NewRouter(h *UsersHandler, ih *InterestsHandler, fh *FriendsHandler, jwtSec
 		r.Get("/api/v1/users/me", h.HandleGetMe)
 		r.Put("/api/v1/users/me", h.HandleUpdateMe)
 		r.Delete("/api/v1/users/me", h.HandleDeleteMe)
+		r.Get("/api/v1/users/{id}", h.HandleGetUser)
 
 		r.Get("/api/v1/interests", ih.HandleListCatalog)
 
@@ -29,6 +30,14 @@ func NewRouter(h *UsersHandler, ih *InterestsHandler, fh *FriendsHandler, jwtSec
 
 		r.Get("/api/v1/users/me/friends", fh.HandleListFriends)
 		r.Delete("/api/v1/users/me/friends/{friendId}", fh.HandleRemoveFriend)
+
+		r.Route("/api/v1/admin", func(r chi.Router) {
+			r.Use(auth.RequireAdmin)
+			r.Get("/users", ah.HandleListUsers)
+			r.Patch("/users/{id}/deactivate", ah.HandleDeactivateUser)
+			r.Patch("/users/{id}/activate", ah.HandleActivateUser)
+			r.Get("/stats", ah.HandlePlatformStats)
+		})
 	})
 
 	return r

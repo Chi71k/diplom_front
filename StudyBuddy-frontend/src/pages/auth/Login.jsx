@@ -20,6 +20,7 @@ const Login = ({ onSuccess }) => {
     setLoading(true)
     try {
       const data = await apiLogin(email, password)
+      if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken)
       if (onSuccess) onSuccess(data.accessToken)
       navigate('/dashboard')
     } catch (err) {

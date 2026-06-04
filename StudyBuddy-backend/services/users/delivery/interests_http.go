@@ -2,6 +2,8 @@ package delivery
 
 import (
 	"encoding/json"
+	"errors"
+	"io"
 	"log"
 	"net/http"
 	"studybuddy/backend/pkg/auth"
@@ -51,9 +53,11 @@ func (h *InterestsHandler) HandleReplaceMyInterests(w http.ResponseWriter, r *ht
 
 	var req ReplaceMyInterestsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		_, _ = io.Copy(io.Discard, r.Body)
 		httputil.Error(w, http.StatusBadRequest, "failed to parse request")
 		return
 	}
+	_, _ = io.Copy(io.Discard, r.Body)
 
 	items, err := h.ReplaceMine.ReplaceMyInterests(r.Context(), usecase.ReplaceMyInterestsInput{
 		UserID:      userID,
@@ -61,7 +65,7 @@ func (h *InterestsHandler) HandleReplaceMyInterests(w http.ResponseWriter, r *ht
 	})
 	if err != nil {
 		log.Printf("HandleReplaceMyInterests: use case error: %v", err)
-		if err == usecase.ErrInvalidInterestIDs {
+		if errors.Is(err, usecase.ErrInvalidInterestIDs) {
 			httputil.Error(w, http.StatusBadRequest, "invalid interest ids")
 			return
 		}

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useToast } from '../../context/ToastContext'
-import { apiCreateGroup, apiGetGroup, apiUpdateGroup } from '../../api'
+import { apiCreateGroup, apiGetGroup, apiUpdateGroup, apiListCourses } from '../../api'
+import { useAuth } from '../../context/useAuth'
 
 const inputStyle = {
   width: '100%', padding: '10px 13px',
@@ -9,26 +10,38 @@ const inputStyle = {
   fontSize: '14px', outline: 'none', background: '#fff',
 }
 
+const labelStyle = {
+  fontSize: '13px', fontWeight: 600, color: '#374151',
+  marginBottom: '6px', display: 'block',
+}
+
 const GroupForm = ({ edit }) => {
-  const toast    = useToast()
-  const navigate = useNavigate()
-  const { id }   = useParams()
-  const [form, setForm]     = useState({ name: '', description: '', courseIds: '' })
-  const [loading, setLoading] = useState(!!edit)
-  const [saving, setSaving]   = useState(false)
+  const toast        = useToast()
+  const navigate     = useNavigate()
+  const { id }       = useParams()
+  const { profile }  = useAuth()
+
+  const [form, setForm]           = useState({ name: '', description: '' })
+  const [selectedCourseIds, setSelectedCourseIds] = useState([])
+  const [courses, setCourses]     = useState([])
+  const [loading, setLoading]     = useState(true)
+  const [saving, setSaving]       = useState(false)
 
   useEffect(() => {
-    if (!edit) return
     const load = async () => {
+      setLoading(true)
       try {
-        const g = await apiGetGroup(id)
-        setForm({
-          name: g.name,
-          description: g.description ?? '',
-          courseIds: (g.courseIds ?? []).join(', '),
-        })
+        const coursesData = await apiListCourses({ limit: 100 })
+        const all = Array.isArray(coursesData) ? coursesData : []
+        setCourses(all.filter((c) => c.ownerUserId === profile?.id))
+
+        if (edit) {
+          const g = await apiGetGroup(id)
+          setForm({ name: g.name, description: g.description ?? '' })
+          setSelectedCourseIds(g.courseIds ?? [])
+        }
       } catch {
-        toast.error('Failed to load group')
+        toast.error('Failed to load data')
       } finally {
         setLoading(false)
       }
@@ -36,13 +49,21 @@ const GroupForm = ({ edit }) => {
     load()
   }, [id])
 
+  const toggleCourse = (courseId) => {
+    setSelectedCourseIds((prev) =>
+      prev.includes(courseId)
+        ? prev.filter((c) => c !== courseId)
+        : [...prev, courseId]
+    )
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setSaving(true)
     const body = {
-      name: form.name,
+      name:        form.name,
       description: form.description,
-      courseIds: form.courseIds.split(',').map((s) => s.trim()).filter(Boolean),
+      courseIds:   selectedCourseIds,
     }
     try {
       if (edit) {
@@ -72,10 +93,10 @@ const GroupForm = ({ edit }) => {
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
+          {/* Name */}
           <div>
-            <label style={{ fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '6px', display: 'block' }}>
-              Group name *
-            </label>
+            <label style={labelStyle}>Group name *</label>
             <input
               style={inputStyle}
               required
@@ -85,8 +106,9 @@ const GroupForm = ({ edit }) => {
             />
           </div>
 
+          {/* Description */}
           <div>
-            <label style={{ fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '6px', display: 'block' }}>
+            <label style={labelStyle}>
               Description
               <span style={{ fontWeight: 400, color: 'var(--muted)', marginLeft: '6px' }}>(optional)</span>
             </label>
@@ -99,19 +121,73 @@ const GroupForm = ({ edit }) => {
             />
           </div>
 
+          {/* Courses — multi-select from list */}
           <div>
-            <label style={{ fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '6px', display: 'block' }}>
-              Course IDs
-              <span style={{ fontWeight: 400, color: 'var(--muted)', marginLeft: '6px' }}>(comma-separated, optional)</span>
+            <label style={labelStyle}>
+              Courses
+              <span style={{ fontWeight: 400, color: 'var(--muted)', marginLeft: '6px' }}>(optional)</span>
             </label>
-            <input
-              style={inputStyle}
-              value={form.courseIds}
-              onChange={(e) => setForm((f) => ({ ...f, courseIds: e.target.value }))}
-              placeholder="Paste course UUIDs separated by commas"
-            />
+
+            {courses.length === 0 ? (
+              <div style={{ fontSize: '13px', color: 'var(--muted)', padding: '10px 0' }}>
+                No courses yet.{' '}
+                <span
+                  style={{ color: 'var(--primary)', cursor: 'pointer', fontWeight: 600 }}
+                  onClick={() => navigate('/courses/new')}
+                >
+                  Add a course first
+                </span>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {courses.map((course) => {
+                  const selected = selectedCourseIds.includes(course.id)
+                  return (
+                    <label
+                      key={course.id}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '10px',
+                        padding: '10px 12px', borderRadius: '8px', cursor: 'pointer',
+                        border: `1.5px solid ${selected ? 'var(--primary)' : 'var(--border)'}`,
+                        background: selected ? 'var(--blue-50)' : '#fff',
+                        transition: 'border-color .15s, background .15s',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={() => toggleCourse(course.id)}
+                        style={{ width: '16px', height: '16px', accentColor: 'var(--primary)', flexShrink: 0 }}
+                      />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '14px', fontWeight: selected ? 600 : 400, color: 'var(--text)' }}>
+                          {course.title}
+                        </div>
+                        {(course.subject || course.level) && (
+                          <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '1px' }}>
+                            {[course.subject, course.level].filter(Boolean).join(' · ')}
+                          </div>
+                        )}
+                      </div>
+                      {selected && (
+                        <span style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: 700, flexShrink: 0 }}>
+                          ✓
+                        </span>
+                      )}
+                    </label>
+                  )
+                })}
+              </div>
+            )}
+
+            {selectedCourseIds.length > 0 && (
+              <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '6px' }}>
+                {selectedCourseIds.length} course{selectedCourseIds.length > 1 ? 's' : ''} selected
+              </div>
+            )}
           </div>
 
+          {/* Actions */}
           <div style={{ display: 'flex', gap: '10px', paddingTop: '4px' }}>
             <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? 'Saving…' : edit ? 'Save changes' : 'Create group'}
@@ -119,11 +195,12 @@ const GroupForm = ({ edit }) => {
             <button
               type="button"
               className="btn btn-secondary"
-              onClick={() => navigate(edit ? `/groups/${id}` : '/groups')}
+              onClick={() => navigate(edit ? `/groups/${id}` : '/study')}
             >
               Cancel
             </button>
           </div>
+
         </form>
       </div>
     </div>

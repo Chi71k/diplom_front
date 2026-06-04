@@ -44,7 +44,11 @@ func (u *refresh) Refresh(ctx context.Context, in RefreshInput) (RefreshOutput, 
 	if !user.IsActive {
 		return RefreshOutput{}, domain.ErrUserInactive
 	}
-	access, _, expAt, err := u.jwt.IssuePair(user.ID, user.Email)
+	role := user.Role
+	if role == "" {
+		role = domain.RoleStudent
+	}
+	access, _, expAt, err := u.jwt.IssuePair(user.ID, user.Email, role)
 	if err != nil {
 		return RefreshOutput{}, err
 	}

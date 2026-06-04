@@ -3,6 +3,7 @@ package delivery
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"time"
 
@@ -48,9 +49,11 @@ type AuthResponse struct {
 func (h *AuthHandler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	var req RegisterRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		_, _ = io.Copy(io.Discard, r.Body)
 		httputil.Error(w, http.StatusBadRequest, "invalid body")
 		return
 	}
+	_, _ = io.Copy(io.Discard, r.Body)
 	if req.Email == "" || req.Password == "" || req.FirstName == "" || req.LastName == "" {
 		httputil.Error(w, http.StatusBadRequest, "email, password, firstName, lastName required")
 		return
@@ -86,9 +89,11 @@ func (h *AuthHandler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		_, _ = io.Copy(io.Discard, r.Body)
 		httputil.Error(w, http.StatusBadRequest, "invalid body")
 		return
 	}
+	_, _ = io.Copy(io.Discard, r.Body)
 	if req.Email == "" || req.Password == "" {
 		httputil.Error(w, http.StatusBadRequest, "email and password required")
 		return
@@ -122,9 +127,11 @@ func (h *AuthHandler) HandleLogin(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) HandleRefresh(w http.ResponseWriter, r *http.Request) {
 	var req RefreshRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.RefreshToken == "" {
+		_, _ = io.Copy(io.Discard, r.Body)
 		httputil.Error(w, http.StatusBadRequest, "refreshToken is required")
 		return
 	}
+	_, _ = io.Copy(io.Discard, r.Body)
 	out, err := h.Refresh.Refresh(r.Context(), usecase.RefreshInput{RefreshToken: req.RefreshToken})
 	if err != nil {
 		if errors.Is(err, pkgauth.ErrInvalidToken) || errors.Is(err, domain.ErrInvalidCreds) || errors.Is(err, domain.ErrUserInactive) {

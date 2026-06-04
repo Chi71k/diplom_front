@@ -18,6 +18,6 @@ type PasswordHasher interface {
 
 // JWTIssuer issues token pairs (abstracts pkg/auth for testability).
 type JWTIssuer interface {
-	IssuePair(userID, email string) (access, refresh string, expAtUnix int64, err error)
+	IssuePair(userID, email, role string) (access, refresh string, expAtUnix int64, err error)
 	ParseRefresh(token string) (userID, email string, err error)
 }

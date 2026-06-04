@@ -51,6 +51,8 @@ tags:
     description: Points, leaderboards, and gamification
   - name: sessions
     description: Scheduled study sessions (availability service)
+  - name: admin
+    description: Platform administration (users service, admin role required)
 
 paths:
   /health:
@@ -173,6 +175,141 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/admin/users:
+    get:
+      summary: List all users (admin only)
+      tags: [admin]
+      operationId: adminListUsers
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [student, admin]
+        - name: is_active
+          in: query
+          schema:
+            type: boolean
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUserListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Caller is not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/admin/users/{id}/deactivate:
+    patch:
+      summary: Deactivate a user account (admin only)
+      tags: [admin]
+      operationId: adminDeactivateUser
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AdminUserId'
+      responses:
+        '204':
+          description: User deactivated
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Caller is not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/admin/users/{id}/activate:
+    patch:
+      summary: Reactivate a user account (admin only)
+      tags: [admin]
+      operationId: adminActivateUser
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AdminUserId'
+      responses:
+        '204':
+          description: User activated
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Caller is not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/admin/stats:
+    get:
+      summary: Platform aggregate statistics (admin only)
+      tags: [admin]
+      operationId: adminPlatformStats
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformStatsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Caller is not an admin
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '500':
           $ref: '#/components/responses/InternalServerError'
 
@@ -911,6 +1048,50 @@ paths:
         '500':
           $ref: '#/components/responses/InternalServerError'
 
+  /api/v1/availability/sessions/{id}/export-to-gcal:
+    post:
+      summary: Export a confirmed study session to the caller's Google Calendar
+      tags: [sessions, gcal]
+      operationId: exportSessionToGCal
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportSessionToGCalResponse'
+        '400':
+          description: Session not confirmed or Google Calendar not connected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Caller is not a session participant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
   /api/v1/sessions/{sessionID}/confirm:
     post:
       summary: Confirm participation in a study session
@@ -945,6 +1126,9 @@ paths:
   /api/v1/matching/candidates:
     get:
       summary: List match candidates for the current user
+      description: |
+        Returns ranked study partners sorted descending by overallScore (weighted composite of
+        semantic, availability, course overlap, reputation, and mutual-friends signals).
       tags: [matching]
       operationId: listMatchingCandidates
       security:
@@ -1783,6 +1967,13 @@ components:
       required: true
       schema:
         type: string
+    AdminUserId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
 
   responses:
     BadRequest:
@@ -1899,6 +2090,10 @@ components:
           type: string
         lastName:
           type: string
+        role:
+          type: string
+          enum: [student, admin]
+          description: Platform role from users.role (included when exposed by API)
         bio:
           type: string
         avatarUrl:
@@ -2165,6 +2360,62 @@ components:
           items:
             $ref: '#/components/schemas/SessionResponse'
 
+    ExportSessionToGCalResponse:
+      type: object
+      properties:
+        gcal_event_id:
+          type: string
+          description: Google Calendar event ID stored on session_participants.gcal_event_id
+
+    AdminUserSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        role:
+          type: string
+          enum: [student, admin]
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    AdminUserListResponse:
+      type: object
+      properties:
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminUserSummary'
+        total:
+          type: integer
+        page:
+          type: integer
+        page_size:
+          type: integer
+
+    PlatformStatsResponse:
+      type: object
+      properties:
+        totalUsers:
+          type: integer
+        activeUsers:
+          type: integer
+        totalMatches:
+          type: integer
+        totalGroups:
+          type: integer
+        totalSessions:
+          type: integer
+
     SlotOverlapResponse:
       type: object
       properties:
@@ -2202,9 +2453,42 @@ components:
         semanticScore:
           type: number
           format: float
+          minimum: 0
+          maximum: 1
+          description: Cosine similarity of Gemini profile embeddings (0.5 neutral when unavailable).
+        availabilityScore:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Temporal overlap ratio of weekly availability slots.
+        courseScore:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Proportion of shared courses (Jaccard index).
+        reputationScore:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Peer rating normalised from [1,5] to [0,1]; default 0.5 when no reviews.
+        mutualFriendsScore:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Normalised mutual friend count (capped at 10 friends).
         overallScore:
           type: number
           format: float
+          minimum: 0
+          maximum: 1
+          description: |
+            Weighted composite score (0–1):
+            0.35×semantic + 0.30×availability + 0.20×course + 0.10×reputation + 0.05×mutual friends.
+            Results are sorted by this field descending.
 
     CandidateListResponse:
       type: object

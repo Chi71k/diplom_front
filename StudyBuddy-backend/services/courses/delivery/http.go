@@ -2,6 +2,7 @@ package delivery
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"strconv"
 
@@ -117,9 +118,11 @@ func (h *CoursesHandler) HandleCreateCourse(w http.ResponseWriter, r *http.Reque
 	}
 	var req CreateCourseRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		_, _ = io.Copy(io.Discard, r.Body)
 		httputil.Error(w, http.StatusBadRequest, "invalid body")
 		return
 	}
+	_, _ = io.Copy(io.Discard, r.Body)
 	if req.Title == "" || req.Description == "" || req.Subject == "" || req.Level == "" {
 		httputil.Error(w, http.StatusBadRequest, "title, description, subject, level required")
 		return
@@ -156,9 +159,11 @@ func (h *CoursesHandler) handleUpdateCourse(w http.ResponseWriter, r *http.Reque
 	}
 	var req UpdateCourseRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		_, _ = io.Copy(io.Discard, r.Body)
 		httputil.Error(w, http.StatusBadRequest, "invalid body")
 		return
 	}
+	_, _ = io.Copy(io.Discard, r.Body)
 	if req.Title == nil && req.Description == nil && req.Subject == nil && req.Level == nil {
 		course, err := h.Get.Get(r.Context(), id)
 		if err != nil {

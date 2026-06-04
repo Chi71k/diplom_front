@@ -2,6 +2,11 @@ package domain
 
 import "time"
 
+const (
+	RoleStudent = "student"
+	RoleAdmin   = "admin"
+)
+
 // User represents an authenticated user (credentials + minimal profile for register).
 type User struct {
 	ID           string
@@ -9,6 +14,7 @@ type User struct {
 	PasswordHash string
 	FirstName    string
 	LastName     string
+	Role         string
 	IsActive     bool
 	CreatedAt    time.Time
 	UpdatedAt    time.Time

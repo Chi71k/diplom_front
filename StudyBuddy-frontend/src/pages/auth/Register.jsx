@@ -26,6 +26,7 @@ const Register = ({ onSuccess }) => {
     setLoading(true)
     try {
       const data = await apiRegister({ email, password, firstName, lastName })
+      if (data.refreshToken) localStorage.setItem('refreshToken', data.refreshToken)
       if (onSuccess) onSuccess(data.accessToken)
       navigate('/profile')
     } catch (err) {

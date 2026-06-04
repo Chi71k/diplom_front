@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"studybuddy/backend/services/users/domain"
@@ -18,7 +20,12 @@ type PgProfileRepository struct {
 }
 
 // NewPgProfileRepository creates a new PgProfileRepository.
-func NewPgProfileRepository(pool *pgxpool.Pool) usecase.ProfileRepository {
+func NewPgProfileRepository(pool *pgxpool.Pool) *PgProfileRepository {
+	return &PgProfileRepository{pool: pool}
+}
+
+// NewPgAdminRepository returns the same store for admin operations.
+func NewPgAdminRepository(pool *pgxpool.Pool) usecase.AdminRepository {
 	return &PgProfileRepository{pool: pool}
 }
 
@@ -27,7 +34,8 @@ func (r *PgProfileRepository) GetByUserID(ctx context.Context, userID string) (*
 	defer cancel()
 
 	const q = `
-SELECT id, email, first_name, last_name, bio, avatar_url, created_at, updated_at
+SELECT id, email, first_name, last_name, bio, avatar_url,
+       COALESCE(telegram_tag, ''), created_at, updated_at
 FROM users
 WHERE id = $1;
 `
@@ -39,6 +47,7 @@ WHERE id = $1;
 		&p.LastName,
 		&p.Bio,
 		&p.AvatarURL,
+		&p.TelegramTag,
 		&p.CreatedAt,
 		&p.UpdatedAt,
 	)
@@ -63,6 +72,7 @@ SET first_name = $2,
     last_name  = $3,
     bio        = $4,
     avatar_url = $5,
+    telegram_tag = $6,
     updated_at = now()
 WHERE id = $1;
 `
@@ -72,6 +82,7 @@ WHERE id = $1;
 		profile.LastName,
 		profile.Bio,
 		profile.AvatarURL,
+		profile.TelegramTag,
 	)
 	return err
 }
@@ -90,4 +101,112 @@ WHERE id = $1;
 `
 	_, err := r.pool.Exec(ctx, q, userID)
 	return err
+}
+
+// ListUsers returns a paginated, filterable list of all users.
+func (r *PgProfileRepository) ListUsers(ctx context.Context, filter domain.AdminUserFilter, limit, offset int) ([]domain.UserSummary, int, error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	var (
+		conds  []string
+		args   []any
+		argPos = 1
+	)
+	if filter.Role != nil {
+		conds = append(conds, fmt.Sprintf("role = $%d", argPos))
+		args = append(args, *filter.Role)
+		argPos++
+	}
+	if filter.IsActive != nil {
+		conds = append(conds, fmt.Sprintf("is_active = $%d", argPos))
+		args = append(args, *filter.IsActive)
+		argPos++
+	}
+	where := ""
+	if len(conds) > 0 {
+		where = "WHERE " + strings.Join(conds, " AND ")
+	}
+
+	countQ := "SELECT COUNT(*) FROM users " + where
+	var total int
+	if err := r.pool.QueryRow(ctx, countQ, args...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	listQ := fmt.Sprintf(`
+SELECT id, email, first_name, last_name, role, is_active, created_at
+FROM users
+%s
+ORDER BY created_at DESC
+LIMIT $%d OFFSET $%d;
+`, where, argPos, argPos+1)
+	args = append(args, limit, offset)
+
+	rows, err := r.pool.Query(ctx, listQ, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	var out []domain.UserSummary
+	for rows.Next() {
+		var u domain.UserSummary
+		if err := rows.Scan(&u.ID, &u.Email, &u.FirstName, &u.LastName, &u.Role, &u.IsActive, &u.CreatedAt); err != nil {
+			return nil, 0, err
+		}
+		out = append(out, u)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+	if out == nil {
+		out = []domain.UserSummary{}
+	}
+	return out, total, nil
+}
+
+// SetUserActive sets is_active for the given user ID.
+func (r *PgProfileRepository) SetUserActive(ctx context.Context, userID string, active bool) error {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	const q = `
+UPDATE users
+SET is_active = $2,
+    updated_at = now()
+WHERE id = $1;
+`
+	tag, err := r.pool.Exec(ctx, q, userID, active)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrUserNotFound
+	}
+	return nil
+}
+
+// GetPlatformStats returns aggregate counts across the platform.
+func (r *PgProfileRepository) GetPlatformStats(ctx context.Context) (domain.PlatformStats, error) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	const q = `
+SELECT
+    (SELECT COUNT(*)::int FROM users),
+    (SELECT COUNT(*)::int FROM users WHERE is_active = true),
+    (SELECT COUNT(*)::int FROM matches WHERE status = 'accepted'),
+    (SELECT COUNT(*)::int FROM study_groups),
+    (SELECT COUNT(*)::int FROM study_sessions WHERE status = 'confirmed');
+`
+	var s domain.PlatformStats
+	err := r.pool.QueryRow(ctx, q).Scan(
+		&s.TotalUsers,
+		&s.ActiveUsers,
+		&s.TotalMatches,
+		&s.TotalGroups,
+		&s.TotalSessions,
+	)
+	return s, err
 }

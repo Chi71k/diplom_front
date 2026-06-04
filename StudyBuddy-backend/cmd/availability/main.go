@@ -79,20 +79,22 @@ func main() {
 	cancelSessionUC := usecase.NewCancelSession(sessionRepo, gcalProvider, gcalRepo)
 	listSessionsUC := usecase.NewListMySessions(sessionRepo)
 	getSessionUC := usecase.NewGetSession(sessionRepo)
+	exportSessionUC := usecase.NewExportSessionToGCal(sessionRepo, gcalProvider, gcalRepo)
 
 	// ── handler + router ─────────────────────────────────────────────────────
 	handler := &delivery.AvailabilityHandler{
-		ListSlots:      listSlotsUC,
-		CreateSlot:     createSlotUC,
-		DeleteSlot:     deleteSlotUC,
-		GCalConnect:    gcalConnectUC,
-		GCalImport:     gcalImportUC,
-		GCalDisconnect: gcalDisconnectUC,
-		ProposeSession: proposeSessionUC,
-		ConfirmSession: confirmSessionUC,
-		CancelSession:  cancelSessionUC,
-		ListMySessions: listSessionsUC,
-		GetSession:     getSessionUC,
+		ListSlots:           listSlotsUC,
+		CreateSlot:          createSlotUC,
+		DeleteSlot:          deleteSlotUC,
+		GCalConnect:         gcalConnectUC,
+		GCalImport:          gcalImportUC,
+		GCalDisconnect:      gcalDisconnectUC,
+		ProposeSession:      proposeSessionUC,
+		ConfirmSession:      confirmSessionUC,
+		CancelSession:       cancelSessionUC,
+		ListMySessions:      listSessionsUC,
+		GetSession:          getSessionUC,
+		ExportSessionToGCal: exportSessionUC,
 	}
 	router := delivery.NewRouter(handler, []byte(jwtSecret))
 

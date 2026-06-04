@@ -29,6 +29,7 @@ func (r *PgCandidateStore) ListCandidateIDs(ctx context.Context, requesterID str
 SELECT id::text
 FROM users
 WHERE is_active = true
+  AND role != 'admin'
   AND id != ALL($1::uuid[])
 ORDER BY created_at DESC
 LIMIT 200;

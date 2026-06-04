@@ -10,8 +10,8 @@ type JWTAdapter struct {
 }
 
 // IssuePair implements JWTIssuer.
-func (a JWTAdapter) IssuePair(userID, email string) (access, refresh string, expAtUnix int64, err error) {
-	access, refresh, expAt, err := auth.IssuePair(a.Config, userID, email)
+func (a JWTAdapter) IssuePair(userID, email, role string) (access, refresh string, expAtUnix int64, err error) {
+	access, refresh, expAt, err := auth.IssuePair(a.Config, userID, email, role)
 	if err != nil {
 		return "", "", 0, err
 	}

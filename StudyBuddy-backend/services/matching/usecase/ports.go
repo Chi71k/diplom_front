@@ -73,10 +73,9 @@ type CandidateStore interface {
 	ListCandidateIDs(ctx context.Context, requesterID string, excludeIDs []string) ([]string, error)
 }
 
-// EmbeddingProvider computes or retrieves a cached semantic embedding for a user.
-// Returns nil embedding without error when embedding is unavailable (graceful degradation).
-type EmbeddingProvider interface {
-	GetOrCompute(ctx context.Context, userID string) ([]float64, error)
+// EmbeddingStore loads precomputed embedding vectors from persistent storage.
+type EmbeddingStore interface {
+	GetEmbeddings(ctx context.Context, userIDs []string) (map[string][]float32, error)
 }
 
 // ReputationClient returns a normalized reputation score in [0, 1] for a user (e.g. average rating).

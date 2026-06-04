@@ -43,10 +43,11 @@ const (
 )
 
 var (
-	ErrSessionInPast   = errors.New("session cannot start in the past")
-	ErrInvalidDuration = errors.New("session duration must be between 15 minutes and 8 hours")
-	ErrNoParticipants  = errors.New("session must have at least one other participant")
-	ErrNotOrganizer    = errors.New("only the organizer can cancel this session")
-	ErrSessionNotFound = errors.New("session not found")
-	ErrNotParticipant  = errors.New("user is not a participant of this session")
+	ErrSessionNotConfirmed = errors.New("session must be confirmed before exporting to google calendar")
+	ErrSessionInPast       = errors.New("session cannot start in the past")
+	ErrInvalidDuration     = errors.New("session duration must be between 15 minutes and 8 hours")
+	ErrNoParticipants      = errors.New("session must have at least one other participant")
+	ErrNotOrganizer        = errors.New("only the organizer can cancel this session")
+	ErrSessionNotFound     = errors.New("session not found")
+	ErrNotParticipant      = errors.New("user is not a participant of this session")
 )

@@ -3,10 +3,12 @@ package delivery
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 
 	"studybuddy/backend/pkg/auth"
 	"studybuddy/backend/pkg/httputil"
@@ -55,9 +57,11 @@ func (h *ReviewsHandler) HandleCreateReview(w http.ResponseWriter, r *http.Reque
 	}
 	var req createReviewRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		_, _ = io.Copy(io.Discard, r.Body)
 		httputil.Error(w, http.StatusBadRequest, "invalid body")
 		return
 	}
+	_, _ = io.Copy(io.Discard, r.Body)
 	authHdr := r.Header.Get("Authorization")
 	out, err := h.Create.CreateReview(r.Context(), usecase.CreateReviewInput{
 		ReviewerID: reviewerID,
@@ -96,6 +100,10 @@ func (h *ReviewsHandler) HandleListReviewsForUser(w http.ResponseWriter, r *http
 		httputil.Error(w, http.StatusBadRequest, "missing user id")
 		return
 	}
+	if _, err := uuid.Parse(target); err != nil {
+		httputil.Error(w, http.StatusBadRequest, "invalid userID: must be a valid UUID")
+		return
+	}
 	list, err := h.List.ListReviewsForUser(r.Context(), target)
 	if err != nil {
 		httputil.Error(w, http.StatusInternalServerError, "failed to list reviews")
@@ -130,6 +138,10 @@ func (h *ReviewsHandler) HandleGetRating(w http.ResponseWriter, r *http.Request)
 	userID := chi.URLParam(r, "userID")
 	if userID == "" {
 		httputil.Error(w, http.StatusBadRequest, "missing user id")
+		return
+	}
+	if _, err := uuid.Parse(userID); err != nil {
+		httputil.Error(w, http.StatusBadRequest, "invalid userID: must be a valid UUID")
 		return
 	}
 	sum, err := h.GetRating.GetAverageRating(r.Context(), userID)

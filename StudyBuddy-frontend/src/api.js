@@ -28,8 +28,13 @@ async function apiFetch(url, options) {
 
   if (res.status === 401) {
     try {
+      const storedRefresh = localStorage.getItem('refreshToken')
+      if (!storedRefresh) throw { status: 401, error: 'Unauthorized' }
+
       const refreshRes = await fetch(`${API_BASE}/api/v1/auth/refresh`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: storedRefresh }),
         credentials: 'include',
       })
       // Если refresh эндпоинт не существует — не разлогиниваем, просто пробрасываем ошибку
@@ -543,5 +548,57 @@ export async function apiGetUserRating(userId) {
   const res = await fetch(
     `${API_BASE}/api/v1/reviews/users/${userId}/rating`
   )
+  return handleResponse(res)
+}
+
+// --- Admin ---
+export async function apiAdminListUsers(params = {}) {
+  const q = new URLSearchParams()
+  if (params.search) q.set('search', params.search)
+  if (params.active !== undefined && params.active !== '') q.set('active', params.active)
+  if (params.limit) q.set('limit', params.limit)
+  if (params.offset) q.set('offset', params.offset)
+  const res = await apiFetch(`${API_BASE}/api/v1/admin/users?${q}`, {
+    method: 'GET',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  return handleResponse(res)
+}
+
+export async function apiAdminActivateUser(id) {
+  const res = await apiFetch(`${API_BASE}/api/v1/admin/users/${id}/activate`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  return handleResponse(res)
+}
+
+export async function apiAdminDeactivateUser(id) {
+  const res = await apiFetch(`${API_BASE}/api/v1/admin/users/${id}/deactivate`, {
+    method: 'PATCH',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  return handleResponse(res)
+}
+
+export async function apiAdminStats() {
+  const res = await apiFetch(`${API_BASE}/api/v1/admin/stats`, {
+    method: 'GET',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  return handleResponse(res)
+}
+
+// --- Session GCal export ---
+export async function apiExportSessionToGCal(id) {
+  const res = await apiFetch(`${API_BASE}/api/v1/availability/sessions/${id}/export-to-gcal`, {
+    method: 'POST',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
   return handleResponse(res)
 }

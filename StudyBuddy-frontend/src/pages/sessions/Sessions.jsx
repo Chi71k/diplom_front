@@ -6,6 +6,7 @@ import {
   apiProposeSession,
   apiConfirmSession,
   apiCancelSession,
+  apiExportSessionToGCal,
 } from '../../api'
 
 const STATUS = {
@@ -102,6 +103,18 @@ const Sessions = () => {
       setSessions((prev) => prev.map((x) => (x.id === id ? { ...x, status: 'canceled' } : x)))
     } catch (e) {
       toast.error(e.error || 'Failed to cancel')
+    } finally {
+      setActing(null)
+    }
+  }
+
+  const handleExportGCal = async (id) => {
+    setActing(id)
+    try {
+      await apiExportSessionToGCal(id)
+      toast.success('Session exported to Google Calendar!')
+    } catch (e) {
+      toast.error(e.error || 'Export failed — make sure Google Calendar is connected')
     } finally {
       setActing(null)
     }
@@ -219,15 +232,6 @@ const Sessions = () => {
           return (
             <div key={s.id} className="req-card">
               <div className="req-card-main">
-                <div style={{
-                  width: '40px', height: '40px', borderRadius: '10px',
-                  background: '#eff6ff', display: 'flex',
-                  alignItems: 'center', justifyContent: 'center',
-                  fontSize: '18px', flexShrink: 0,
-                }}>
-                  📅
-                </div>
-
                 <div className="req-card-info" style={{ width: '100%' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <span className="req-card-name">{s.title}</span>
@@ -240,7 +244,7 @@ const Sessions = () => {
                   </div>
 
                   <div className="req-card-role" style={{ marginTop: '4px' }}>
-                    🕐 {fmtRange(s.startTime, s.endTime)}
+                    {fmtRange(s.startTime, s.endTime)}
                   </div>
 
                   <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '3px' }}>
@@ -255,7 +259,17 @@ const Sessions = () => {
                         disabled={acting === s.id}
                         onClick={() => handleConfirm(s.id)}
                       >
-                        ✓ Confirm
+                        Confirm
+                      </button>
+                    )}
+                    {s.status === 'confirmed' && (
+                      <button
+                        className="btn btn-secondary btn-sm"
+                        disabled={acting === s.id}
+                        onClick={() => handleExportGCal(s.id)}
+                        title="Export to Google Calendar"
+                      >
+                        📅 Export to GCal
                       </button>
                     )}
                     {s.status !== 'canceled' && (isOrganizer || s.status === 'proposed') && (

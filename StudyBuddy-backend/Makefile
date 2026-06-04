@@ -1,11 +1,11 @@
 # StudyBuddy backend - development commands
 # Use: make <target>
 
-.PHONY: run-auth run-users run-courses build test docker-up docker-down db-wait migrate-up tidy
+.PHONY: run-auth run-users run-courses run-groups run-reviews run-points build test docker-up docker-down db-wait migrate-up tidy
 
 # Default: show help
 help:
-	@echo "Targets: run-auth, run-users, build, test, docker-up, docker-down, db-wait, migrate-up, tidy"
+	@echo "Targets: run-auth, run-users, run-courses, run-groups, run-reviews, run-points, build, test, docker-up, docker-down, db-wait, migrate-up, tidy"
 
 # ---------- Run services (from repo root, load .env yourself or export) ----------
 run-auth:
@@ -17,11 +17,23 @@ run-users:
 run-courses:
 	go run ./cmd/courses
 
+run-groups:
+	go run ./cmd/groups
+
+run-reviews:
+	go run ./cmd/reviews
+
+run-points:
+	go run ./cmd/points
+
 # ---------- Build ----------
 build:
 	go build -o bin/auth ./cmd/auth
 	go build -o bin/users ./cmd/users
 	go build -o bin/courses ./cmd/courses
+	go build -o bin/groups ./cmd/groups
+	go build -o bin/reviews ./cmd/reviews
+	go build -o bin/points ./cmd/points
 
 # ---------- Test ----------
 test:
@@ -46,7 +58,7 @@ db-wait:
 	echo "Postgres did not become ready"; exit 1
 
 # ---------- Migrations (requires: go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest) ----------
-DATABASE_URL ?= postgres://user:password@localhost:5432/studybuddy?sslmode=disable
+DATABASE_URL ?= postgres://postgres:REMOVED_SECRET@localhost:5432/studybuddy?sslmode=disable
 
 migrate-up:
 	migrate -path migrations -database "$(DATABASE_URL)" up

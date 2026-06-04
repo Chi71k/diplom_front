@@ -10,18 +10,11 @@ import {
 import { avatarColor } from '../../utils/avatar'
 
 const reasonMeta = {
-  match_accepted:    { label: 'Match accepted',    icon: '🤝' },
-  session_completed: { label: 'Session completed', icon: '📅' },
-  review_received:   { label: 'Review received',   icon: '⭐' },
-  group_created:     { label: 'Group created',     icon: '👥' },
-  group_activity:    { label: 'Group activity',    icon: '👥' },
-}
-
-const rankMedal = (i) => {
-  if (i === 0) return '🥇'
-  if (i === 1) return '🥈'
-  if (i === 2) return '🥉'
-  return null
+  match_accepted:    { label: 'Match accepted' },
+  session_completed: { label: 'Session completed' },
+  review_received:   { label: 'Review received' },
+  group_created:     { label: 'Group created' },
+  group_activity:    { label: 'Group activity' },
 }
 
 const Points = () => {
@@ -123,7 +116,7 @@ const Points = () => {
                 total points
                 {myRank >= 0 && (
                   <span style={{ marginLeft: '8px', fontWeight: 700, color: '#d97706' }}>
-                    {rankMedal(myRank) ?? `· rank #${myRank + 1}`}
+                    · rank #{myRank + 1}
                   </span>
                 )}
               </div>
@@ -140,7 +133,7 @@ const Points = () => {
               )}
 
               {myPoints.transactions?.map((tx) => {
-                const meta = reasonMeta[tx.reason] ?? { label: tx.reason, icon: '💡' }
+                const meta = reasonMeta[tx.reason] ?? { label: tx.reason }
                 return (
                   <div
                     key={tx.id}
@@ -152,14 +145,6 @@ const Points = () => {
                       borderBottom: '1px solid var(--border)',
                     }}
                   >
-                    <div style={{
-                      width: '36px', height: '36px', borderRadius: '10px',
-                      background: '#f8fafc', border: '1px solid var(--border)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '18px', flexShrink: 0,
-                    }}>
-                      {meta.icon}
-                    </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: '14px', fontWeight: 500, color: 'var(--text)' }}>
                         {meta.label}
@@ -214,7 +199,6 @@ const Points = () => {
             {displayList.map((row, i) => {
               const isMe   = row.userId === profile?.id
               const name   = `${row.firstName ?? ''} ${row.lastName ?? ''}`.trim() || row.userId?.slice(0, 8) || '—'
-              const medal  = rankMedal(i)
               const score  = tab === 'leaderboard'
                 ? `${row.totalPoints} pts`
                 : `${row.averageRating?.toFixed(1) ?? '—'} ★`
@@ -236,10 +220,7 @@ const Points = () => {
                 >
                   {/* Rank */}
                   <div style={{ minWidth: '32px', textAlign: 'center', flexShrink: 0 }}>
-                    {medal
-                      ? <span style={{ fontSize: '20px' }}>{medal}</span>
-                      : <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--muted)' }}>#{i + 1}</span>
-                    }
+                    <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--muted)' }}>#{i + 1}</span>
                   </div>
 
                   {/* Avatar */}

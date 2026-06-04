@@ -3,6 +3,7 @@ package delivery
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -45,9 +46,11 @@ func (h *GroupsHandler) HandleCreateGroup(w http.ResponseWriter, r *http.Request
 	}
 	var body createGroupBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		_, _ = io.Copy(io.Discard, r.Body)
 		httputil.Error(w, http.StatusBadRequest, "invalid body")
 		return
 	}
+	_, _ = io.Copy(io.Discard, r.Body)
 	g, err := h.Create.CreateGroup(r.Context(), usecase.CreateGroupInput{
 		OwnerID:     userID,
 		Name:        body.Name,
@@ -112,9 +115,11 @@ func (h *GroupsHandler) HandleUpdateGroup(w http.ResponseWriter, r *http.Request
 	}
 	var body patchGroupBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		_, _ = io.Copy(io.Discard, r.Body)
 		httputil.Error(w, http.StatusBadRequest, "invalid body")
 		return
 	}
+	_, _ = io.Copy(io.Discard, r.Body)
 	g, err := h.Update.UpdateGroup(r.Context(), usecase.UpdateGroupInput{
 		ActorID:     userID,
 		GroupID:     groupID,
@@ -164,9 +169,11 @@ func (h *GroupsHandler) HandleInviteMember(w http.ResponseWriter, r *http.Reques
 	}
 	var body inviteBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.UserID == "" {
+		_, _ = io.Copy(io.Discard, r.Body)
 		httputil.Error(w, http.StatusBadRequest, "userId required")
 		return
 	}
+	_, _ = io.Copy(io.Discard, r.Body)
 	if _, err := uuid.Parse(body.UserID); err != nil {
 		httputil.Error(w, http.StatusBadRequest, "invalid user id")
 		return

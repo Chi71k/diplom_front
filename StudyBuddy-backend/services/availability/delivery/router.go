@@ -32,6 +32,8 @@ func NewRouter(h *AvailabilityHandler, jwtSecret []byte) http.Handler {
 		r.Get("/api/v1/sessions/{sessionID}", h.HandleGetSession)
 		r.Post("/api/v1/sessions/{sessionID}/confirm", h.HandleConfirmSession)
 		r.Delete("/api/v1/sessions/{sessionID}", h.HandleCancelSession)
+
+		r.Post("/api/v1/availability/sessions/{id}/export-to-gcal", h.HandleExportSessionToGCal)
 	})
 
 	return r

@@ -1,11 +1,14 @@
 package delivery
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 
@@ -23,6 +26,7 @@ type MatchingHandler struct {
 	Respond        usecase.RespondToMatch
 	Cancel         usecase.CancelMatch
 	ListMatches    usecase.ListMatches
+	Profiles       usecase.ProfileClient
 }
 
 type MatchResponse struct {
@@ -35,6 +39,13 @@ type MatchResponse struct {
 	UpdatedAt   string `json:"updatedAt"`
 }
 
+// MatchResponseEnriched adds display names for list responses.
+type MatchResponseEnriched struct {
+	MatchResponse
+	RequesterName string `json:"requesterName"`
+	ReceiverName  string `json:"receiverName"`
+}
+
 type SlotOverlapResponse struct {
 	DayOfWeek int    `json:"dayOfWeek"`
 	StartTime string `json:"startTime"`
@@ -43,15 +54,19 @@ type SlotOverlapResponse struct {
 }
 
 type CandidateResponse struct {
-	UserID        string                `json:"userId"`
-	FirstName     string                `json:"firstName"`
-	LastName      string                `json:"lastName"`
-	Bio           string                `json:"bio"`
-	AvatarURL     string                `json:"avatarUrl"`
-	CommonCourses []string              `json:"commonCourses"`
-	CommonSlots   []SlotOverlapResponse `json:"commonSlots"`
-	SemanticScore float64               `json:"semanticScore"`
-	OverallScore  float64               `json:"overallScore"`
+	UserID             string                `json:"userId"`
+	FirstName          string                `json:"firstName"`
+	LastName           string                `json:"lastName"`
+	Bio                string                `json:"bio"`
+	AvatarURL          string                `json:"avatarUrl"`
+	CommonCourses      []string              `json:"commonCourses"`
+	CommonSlots        []SlotOverlapResponse `json:"commonSlots"`
+	SemanticScore      float64               `json:"semanticScore"`
+	AvailabilityScore  float64               `json:"availabilityScore"`
+	CourseScore        float64               `json:"courseScore"`
+	ReputationScore    float64               `json:"reputationScore"`
+	MutualFriendsScore float64               `json:"mutualFriendsScore"`
+	OverallScore       float64               `json:"overallScore"`
 }
 
 type SendMatchRequestBody struct {
@@ -111,9 +126,11 @@ func (h *MatchingHandler) HandleSendRequest(w http.ResponseWriter, r *http.Reque
 
 	var body SendMatchRequestBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		_, _ = io.Copy(io.Discard, r.Body)
 		httputil.Error(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
+	_, _ = io.Copy(io.Discard, r.Body)
 	if body.ReceiverID == "" {
 		httputil.Error(w, http.StatusBadRequest, "receiverId is required")
 		return
@@ -177,9 +194,15 @@ func (h *MatchingHandler) HandleListMatches(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	resp := make([]MatchResponse, 0, len(matches))
+	resp := make([]MatchResponseEnriched, 0, len(matches))
+	nameCache := make(map[string]string)
 	for i := range matches {
-		resp = append(resp, matchToResponse(&matches[i]))
+		mr := matchToResponse(&matches[i])
+		resp = append(resp, MatchResponseEnriched{
+			MatchResponse: mr,
+			RequesterName: h.profileDisplayName(r.Context(), matches[i].RequesterID, nameCache),
+			ReceiverName:  h.profileDisplayName(r.Context(), matches[i].ReceiverID, nameCache),
+		})
 	}
 	httputil.JSON(w, http.StatusOK, map[string]any{"items": resp})
 }
@@ -200,9 +223,11 @@ func (h *MatchingHandler) HandleRespond(w http.ResponseWriter, r *http.Request) 
 
 	var body RespondMatchBody
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		_, _ = io.Copy(io.Discard, r.Body)
 		httputil.Error(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
+	_, _ = io.Copy(io.Discard, r.Body)
 
 	m, err := h.Respond.Respond(r.Context(), usecase.RespondToMatchInput{
 		MatchID:     matchID,
@@ -259,6 +284,21 @@ func (h *MatchingHandler) HandleCancel(w http.ResponseWriter, r *http.Request) {
 }
 
 // helpers
+func (h *MatchingHandler) profileDisplayName(ctx context.Context, userID string, cache map[string]string) string {
+	if n, ok := cache[userID]; ok {
+		return n
+	}
+	var name string
+	if h.Profiles != nil {
+		p, err := h.Profiles.GetProfile(ctx, userID)
+		if err == nil && p != nil {
+			name = strings.TrimSpace(p.FirstName + " " + p.LastName)
+		}
+	}
+	cache[userID] = name
+	return name
+}
+
 func matchToResponse(m *domain.Match) MatchResponse {
 	return MatchResponse{
 		ID:          m.ID,
@@ -286,14 +326,18 @@ func candidateToResponse(c domain.MatchCandidate) CandidateResponse {
 		courses = []string{}
 	}
 	return CandidateResponse{
-		UserID:        c.UserID,
-		FirstName:     c.FirstName,
-		LastName:      c.LastName,
-		Bio:           c.Bio,
-		AvatarURL:     c.AvatarURL,
-		CommonCourses: courses,
-		CommonSlots:   slots,
-		SemanticScore: c.SemanticScore,
-		OverallScore:  c.OverallScore,
+		UserID:             c.UserID,
+		FirstName:          c.FirstName,
+		LastName:           c.LastName,
+		Bio:                c.Bio,
+		AvatarURL:          c.AvatarURL,
+		CommonCourses:      courses,
+		CommonSlots:        slots,
+		SemanticScore:      c.SemanticScore,
+		AvailabilityScore:  c.AvailScore,
+		CourseScore:        c.CourseScore,
+		ReputationScore:    c.ReputationScore,
+		MutualFriendsScore: c.MutualFriendsScore,
+		OverallScore:       c.OverallScore,
 	}
 }

@@ -6,7 +6,6 @@ import (
 	"log"
 	"math"
 	"sort"
-	"studybuddy/backend/pkg/embedding"
 	"studybuddy/backend/services/matching/domain"
 	"time"
 )
@@ -34,7 +33,7 @@ type listCandidates struct {
 	slots       SlotClient
 	courses     CourseClient
 	candidates  CandidateStore
-	embed       EmbeddingProvider
+	embeddings  EmbeddingStore
 	reputation  ReputationClient
 	friendships FriendshipRepository
 }
@@ -45,7 +44,7 @@ func NewListCandidates(
 	slots SlotClient,
 	courses CourseClient,
 	candidates CandidateStore,
-	embed EmbeddingProvider,
+	embeddings EmbeddingStore,
 	reputation ReputationClient,
 	friendships FriendshipRepository,
 ) ListCandidates {
@@ -55,7 +54,7 @@ func NewListCandidates(
 		slots:       slots,
 		courses:     courses,
 		candidates:  candidates,
-		embed:       embed,
+		embeddings:  embeddings,
 		reputation:  reputation,
 		friendships: friendships,
 	}
@@ -67,7 +66,6 @@ func (uc *listCandidates) ListCandidates(ctx context.Context, in ListCandidatesI
 		limit = 20
 	}
 
-	// Excluding already matched students from candidates
 	existing, err := uc.matches.ListForUser(ctx, in.RequesterID, ListMatchesFilter{Limit: 1000})
 	if err != nil {
 		return nil, fmt.Errorf("list existing matches: %w", err)
@@ -89,11 +87,6 @@ func (uc *listCandidates) ListCandidates(ctx context.Context, in ListCandidatesI
 		return []domain.MatchCandidate{}, nil
 	}
 
-	// Requester's data for scoring.
-	myInterests, err := uc.profiles.GetInterestIDs(ctx, in.RequesterID)
-	if err != nil {
-		return nil, fmt.Errorf("get my interests: %w", err)
-	}
 	myCourses, err := uc.courses.ListCourseIDsForUser(ctx, in.RequesterID)
 	if err != nil {
 		return nil, fmt.Errorf("get my courses: %w", err)
@@ -103,16 +96,22 @@ func (uc *listCandidates) ListCandidates(ctx context.Context, in ListCandidatesI
 		return nil, fmt.Errorf("get my slots: %w", err)
 	}
 
-	reqEmb, _ := uc.embed.GetOrCompute(ctx, in.RequesterID)
+	allIDs := make([]string, 0, 1+len(candidateIDs))
+	allIDs = append(allIDs, in.RequesterID)
+	allIDs = append(allIDs, candidateIDs...)
 
-	// Batch-fetch candidate slots.
+	vectorsByUser, err := uc.embeddings.GetEmbeddings(ctx, allIDs)
+	if err != nil {
+		log.Printf("list candidates: batch embeddings: %v", err)
+		vectorsByUser = map[string][]float32{}
+	}
+	requesterVec := vectorsByUser[in.RequesterID]
+
 	allSlots, err := uc.slots.ListForUsers(ctx, candidateIDs)
 	if err != nil {
 		return nil, fmt.Errorf("batch-fetch candidate slots: %w", err)
 	}
 	slotsByUser := groupSlotsByUser(allSlots)
-
-	var fallbackUsed bool
 
 	result := make([]domain.MatchCandidate, 0, len(candidateIDs))
 	for _, cid := range candidateIDs {
@@ -121,35 +120,14 @@ func (uc *listCandidates) ListCandidates(ctx context.Context, in ListCandidatesI
 			continue
 		}
 
-		candEmb, _ := uc.embed.GetOrCompute(ctx, cid)
-
-		var interestJaccard float64
-		if candEmb == nil {
-			theirInterests, ierr := uc.profiles.GetInterestIDs(ctx, cid)
-			if ierr != nil {
-				theirInterests = nil
-			}
-			interestJaccard = jaccardScore(myInterests, theirInterests)
-		}
-
 		theirCourses, _ := uc.courses.ListCourseIDsForUser(ctx, cid)
 		theirSlots := slotsByUser[cid]
 
 		commonCourses := intersectStrings(myCourses, theirCourses)
 		overlaps := computeOverlaps(mySlots, theirSlots)
 		availScore := availabilityScore(mySlots, theirSlots)
-		courseJaccard := jaccardScore(myCourses, theirCourses)
-
-		var semanticForScore float64
-		var semanticDisplay float64
-		if reqEmb != nil && candEmb != nil {
-			semanticForScore = embedding.CosineSimilarity(reqEmb, candEmb)
-			semanticDisplay = semanticForScore
-		} else {
-			fallbackUsed = true
-			semanticForScore = interestJaccard
-			semanticDisplay = interestJaccard
-		}
+		courseScore := jaccardScore(myCourses, theirCourses)
+		semanticScore := ScoreSemantic(requesterVec, vectorsByUser[cid])
 
 		repScore := uc.reputation.GetAverageRating(ctx, cid)
 
@@ -159,40 +137,32 @@ func (uc *listCandidates) ListCandidates(ctx context.Context, in ListCandidatesI
 		}
 		mutualNorm := math.Min(float64(mutuals)/10.0, 1.0)
 
-		score := weightSemantic*semanticForScore +
+		overall := weightSemantic*semanticScore +
 			weightAvailability*availScore +
-			weightCourses*courseJaccard +
+			weightCourses*courseScore +
 			weightReputation*repScore +
 			weightMutualFriends*mutualNorm
 
 		overlapMin := totalOverlapMinutes(mySlots, theirSlots)
 		if len(commonCourses) >= 2 && overlapMin > 30 {
-			score = math.Min(score*1.15, 1.0)
-		}
-
-		interestScoreOut := interestJaccard
-		if candEmb != nil {
-			// Embedding path: cosine (or same value used for semantic weight) is the interest-compatibility signal.
-			interestScoreOut = semanticDisplay
+			overall = math.Min(overall*1.15, 1.0)
 		}
 
 		result = append(result, domain.MatchCandidate{
-			UserID:        profile.UserID,
-			FirstName:     profile.FirstName,
-			LastName:      profile.LastName,
-			Bio:           profile.Bio,
-			AvatarURL:     profile.AvatarURL,
-			CommonCourses: commonCourses,
-			CommonSlots:   overlaps,
-			SemanticScore: semanticDisplay,
-			InterestScore: interestScoreOut,
-			AvailScore:    availScore,
-			OverallScore:  score,
+			UserID:             profile.UserID,
+			FirstName:          profile.FirstName,
+			LastName:           profile.LastName,
+			Bio:                profile.Bio,
+			AvatarURL:          profile.AvatarURL,
+			CommonCourses:      commonCourses,
+			CommonSlots:        overlaps,
+			SemanticScore:      semanticScore,
+			AvailScore:         availScore,
+			CourseScore:        courseScore,
+			ReputationScore:    repScore,
+			MutualFriendsScore: mutualNorm,
+			OverallScore:       overall,
 		})
-	}
-
-	if fallbackUsed {
-		log.Printf("warning: list candidates used interest overlap fallback for semantic scoring (embeddings unavailable)")
 	}
 
 	sort.Slice(result, func(i, j int) bool {

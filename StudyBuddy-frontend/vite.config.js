@@ -12,6 +12,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      '/api/v1/admin': {
+        target: 'http://localhost:8081',
+        changeOrigin: true,
+        secure: false,
+      },
       '/api/v1/users': {
         target: 'http://localhost:8081',
         changeOrigin: true,

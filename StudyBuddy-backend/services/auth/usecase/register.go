@@ -27,15 +27,21 @@ type Register interface {
 	Register(ctx context.Context, in RegisterInput) (RegisterOutput, error)
 }
 
+// RegistrationEmbeddingHook triggers async embedding generation after signup.
+type RegistrationEmbeddingHook interface {
+	OnUserRegistered(userID string)
+}
+
 type register struct {
 	repo   UserRepository
 	hasher PasswordHasher
 	jwt    JWTIssuer
+	embed  RegistrationEmbeddingHook
 }
 
 // NewRegister creates the Register use case.
-func NewRegister(repo UserRepository, hasher PasswordHasher, jwt JWTIssuer) Register {
-	return &register{repo: repo, hasher: hasher, jwt: jwt}
+func NewRegister(repo UserRepository, hasher PasswordHasher, jwt JWTIssuer, embed RegistrationEmbeddingHook) Register {
+	return &register{repo: repo, hasher: hasher, jwt: jwt, embed: embed}
 }
 
 func (u *register) Register(ctx context.Context, in RegisterInput) (RegisterOutput, error) {
@@ -52,12 +58,16 @@ func (u *register) Register(ctx context.Context, in RegisterInput) (RegisterOutp
 		PasswordHash: hash,
 		FirstName:    in.FirstName,
 		LastName:     in.LastName,
+		Role:         domain.RoleStudent,
 		IsActive:     true,
 	}
 	if err := u.repo.Create(ctx, user); err != nil {
 		return RegisterOutput{}, err
 	}
-	access, refresh, expAt, err := u.jwt.IssuePair(user.ID, user.Email)
+	if u.embed != nil {
+		u.embed.OnUserRegistered(user.ID)
+	}
+	access, refresh, expAt, err := u.jwt.IssuePair(user.ID, user.Email, user.Role)
 	if err != nil {
 		return RegisterOutput{}, err
 	}

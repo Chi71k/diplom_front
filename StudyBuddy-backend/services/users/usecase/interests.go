@@ -58,10 +58,11 @@ type replaceMyInterests struct {
 	interestRepo InterestRepository
 	userRepo     UserInterestRepository
 	cache        embedding.Cache
+	regenerator  EmbeddingRegenerator
 }
 
-func NewReplaceMyInterests(interestRepo InterestRepository, userRepo UserInterestRepository, cache embedding.Cache) ReplaceMyInterests {
-	return &replaceMyInterests{interestRepo: interestRepo, userRepo: userRepo, cache: cache}
+func NewReplaceMyInterests(interestRepo InterestRepository, userRepo UserInterestRepository, cache embedding.Cache, regenerator EmbeddingRegenerator) ReplaceMyInterests {
+	return &replaceMyInterests{interestRepo: interestRepo, userRepo: userRepo, cache: cache, regenerator: regenerator}
 }
 
 func (u *replaceMyInterests) ReplaceMyInterests(ctx context.Context, in ReplaceMyInterestsInput) ([]domain.Interest, error) {
@@ -83,6 +84,9 @@ func (u *replaceMyInterests) ReplaceMyInterests(ctx context.Context, in ReplaceM
 		if err := u.cache.Delete(ctx, in.UserID); err != nil {
 			log.Printf("embedding cache invalidate after interests replace: %v", err)
 		}
+	}
+	if u.regenerator != nil {
+		u.regenerator.RegenerateAsync(in.UserID)
 	}
 
 	sort.Slice(existing, func(i, j int) bool { return existing[i].Name < existing[j].Name })
