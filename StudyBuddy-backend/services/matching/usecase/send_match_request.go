@@ -17,16 +17,25 @@ type SendMatchRequest interface {
 }
 
 type sendMatchRequest struct {
-	repo MatchRepository
+	repo        MatchRepository
+	roleChecker UserRoleChecker
 }
 
-func NewSendMatchRequest(repo MatchRepository) SendMatchRequest {
-	return &sendMatchRequest{repo: repo}
+func NewSendMatchRequest(repo MatchRepository, roleChecker UserRoleChecker) SendMatchRequest {
+	return &sendMatchRequest{repo: repo, roleChecker: roleChecker}
 }
 
 func (uc *sendMatchRequest) Send(ctx context.Context, in SendMatchRequestInput) (*domain.Match, error) {
 	if in.RequesterID == in.ReceiverID {
 		return nil, domain.ErrCannotMatchSelf
+	}
+
+	isAdmin, err := uc.roleChecker.IsAdmin(ctx, in.ReceiverID)
+	if err != nil {
+		return nil, fmt.Errorf("check receiver role: %w", err)
+	}
+	if isAdmin {
+		return nil, domain.ErrCannotMatchAdmin
 	}
 
 	existing, err := uc.repo.GetBetween(ctx, in.RequesterID, in.ReceiverID)

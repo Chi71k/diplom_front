@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/useAuth'
-import { apiGetUserById, apiGetUserRating, apiListReviewsForUser } from '../../api'
+import { apiGetUserById, apiGetUserRating, apiListReviewsForUser, apiListCourses, apiGetUserPoints } from '../../api'
 import { avatarColor } from '../../utils/avatar'
 
 export default function UserProfile() {
@@ -13,7 +13,9 @@ export default function UserProfile() {
 
   const [user,    setUser]    = useState(null)
   const [rating,  setRating]  = useState(null)
+  const [points,  setPoints]  = useState(null)
   const [reviews, setReviews] = useState([])
+  const [courses, setCourses] = useState([])
   const [loading, setLoading] = useState(true)
   const [copied,  setCopied]  = useState(false)
 
@@ -25,14 +27,21 @@ export default function UserProfile() {
     const load = async () => {
       setLoading(true)
       try {
-        const [u, r, rv] = await Promise.allSettled([
+        const [u, r, pts, rv, cs] = await Promise.allSettled([
           apiGetUserById(id),
           apiGetUserRating(id),
+          apiGetUserPoints(id),
           apiListReviewsForUser(id),
+          apiListCourses({ limit: 200 }),
         ])
-        if (u.status === 'fulfilled')  setUser(u.value)
-        if (r.status === 'fulfilled')  setRating(r.value)
-        if (rv.status === 'fulfilled') setReviews(rv.value?.items ?? rv.value ?? [])
+        if (u.status === 'fulfilled')   setUser(u.value)
+        if (r.status === 'fulfilled')   setRating(r.value)
+        if (pts.status === 'fulfilled') setPoints(pts.value)
+        if (rv.status === 'fulfilled')  setReviews(rv.value?.items ?? rv.value ?? [])
+        if (cs.status === 'fulfilled') {
+          const all = Array.isArray(cs.value) ? cs.value : (cs.value?.items ?? [])
+          setCourses(all.filter(c => c.ownerUserId === id))
+        }
       } catch {
         toast.error('Failed to load profile')
       } finally {
@@ -69,7 +78,6 @@ export default function UserProfile() {
   return (
     <div style={{ maxWidth: 640, margin: '0 auto' }}>
 
-      {/* Back */}
       <button
         className="btn btn-ghost btn-sm"
         style={{ marginBottom: 12 }}
@@ -78,16 +86,13 @@ export default function UserProfile() {
         ← Back
       </button>
 
-      {/* Header card */}
       <div className="card" style={{ marginBottom: 14, overflow: 'hidden' }}>
-        {/* Cover */}
         <div style={{
           height: clamp(80, 100),
           background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
         }} />
 
         <div style={{ padding: '0 20px 20px' }}>
-          {/* Avatar row */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: -32, marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
             <div
               className="avatar"
@@ -101,31 +106,51 @@ export default function UserProfile() {
               {user.avatarUrl ? <img src={user.avatarUrl} alt={name} /> : initial}
             </div>
 
-            {/* Rating */}
-            {avg != null && (
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: 5,
-                background: '#fefce8', border: '1px solid #fde68a',
-                borderRadius: 8, padding: '6px 12px',
-              }}>
-                <span style={{ fontSize: 18, lineHeight: 1 }}>⭐</span>
-                <span style={{ fontWeight: 800, fontSize: 16, color: '#92400e' }}>
-                  {avg.toFixed(1)}
-                </span>
-                {rating.reviewCount != null && (
-                  <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-                    ({rating.reviewCount})
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {avg != null && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  background: '#fefce8', border: '1px solid #fde68a',
+                  borderRadius: 8, padding: '6px 12px',
+                }}>
+                  <span style={{ fontSize: 18, lineHeight: 1 }}>⭐</span>
+                  <span style={{ fontWeight: 800, fontSize: 16, color: '#92400e' }}>
+                    {avg.toFixed(1)}
                   </span>
-                )}
-              </div>
-            )}
+                  {rating.reviewCount != null && (
+                    <span style={{ fontSize: 12, color: 'var(--muted)' }}>
+                      ({rating.reviewCount})
+                    </span>
+                  )}
+                </div>
+              )}
+              {points?.totalPoints != null && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  background: 'var(--blue-50)', border: '1px solid #bfdbfe',
+                  borderRadius: 8, padding: '6px 12px',
+                }}>
+                  <span style={{ fontSize: 16, lineHeight: 1 }}>★</span>
+                  <span style={{ fontWeight: 800, fontSize: 15, color: 'var(--primary)' }}>
+                    {points.totalPoints}
+                  </span>
+                  <span style={{ fontSize: 12, color: 'var(--muted)' }}>pts</span>
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Name */}
           <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)' }}>{name}</div>
           {user.telegramTag && (
-            <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 3 }}>
-              @{user.telegramTag}
+            <div style={{ fontSize: 13, marginTop: 4 }}>
+              <a
+                href={`https://t.me/${user.telegramTag.replace(/^@/, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ color: '#0088cc', textDecoration: 'none', fontWeight: 500 }}
+              >
+                @{user.telegramTag.replace(/^@/, '')}
+              </a>
             </div>
           )}
 
@@ -136,7 +161,6 @@ export default function UserProfile() {
             </div>
           )}
 
-          {/* Copy ID button */}
           <div style={{
             marginTop: 16,
             padding: '12px 14px',
@@ -164,7 +188,6 @@ export default function UserProfile() {
         </div>
       </div>
 
-      {/* Interests */}
       {user.interests?.length > 0 && (
         <div className="card" style={{ marginBottom: 14, padding: '16px 20px' }}>
           <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Interests</div>
@@ -176,7 +199,35 @@ export default function UserProfile() {
         </div>
       )}
 
-      {/* Reviews */}
+      {courses.length > 0 && (
+        <div className="card" style={{ marginBottom: 14, padding: '16px 20px' }}>
+          <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Courses ({courses.length})</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {courses.map((c) => (
+              <div key={c.id} style={{
+                padding: '10px 14px',
+                background: 'var(--bg)',
+                borderRadius: 8,
+                border: '1px solid var(--border)',
+              }}>
+                <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>{c.title}</div>
+                {(c.subject || c.level) && (
+                  <div style={{ display: 'flex', gap: 6, marginTop: 5 }}>
+                    {c.subject && <span className="chip chip-int" style={{ fontSize: 11 }}>{c.subject}</span>}
+                    {c.level   && <span className="chip chip-int" style={{ fontSize: 11 }}>{c.level}</span>}
+                  </div>
+                )}
+                {c.description && (
+                  <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 5 }}>
+                    {c.description.length > 100 ? c.description.slice(0, 100) + '…' : c.description}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {reviews.length > 0 && (
         <div className="card" style={{ padding: '16px 20px' }}>
           <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>

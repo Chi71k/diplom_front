@@ -110,7 +110,6 @@ export default function AdminUsers() {
     <div className="requests-page">
       <div className="card">
 
-        {/* Header */}
         <div className="requests-head">
           <div>
             <div className="requests-title">User Management</div>
@@ -120,7 +119,6 @@ export default function AdminUsers() {
           </div>
         </div>
 
-        {/* Filters */}
         <div style={{ padding: '0 20px 16px', display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
           <form onSubmit={handleSearch} style={{ display: 'flex', gap: '8px', flex: 1, minWidth: '200px' }}>
             <input
@@ -159,7 +157,6 @@ export default function AdminUsers() {
           </div>
         </div>
 
-        {/* Table */}
         {loading && <div className="loading-state">Loading users…</div>}
 
         {!loading && users.length === 0 && (
@@ -173,7 +170,6 @@ export default function AdminUsers() {
           return (
             <div key={user.id} className="req-card">
               <div className="req-card-main">
-                {/* Avatar */}
                 <div
                   className="avatar"
                   style={{
@@ -219,7 +215,6 @@ export default function AdminUsers() {
           )
         })}
 
-        {/* Pagination */}
         {totalPages > 1 && (
           <div style={{
             display: 'flex', justifyContent: 'center', alignItems: 'center',

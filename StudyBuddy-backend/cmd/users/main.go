@@ -49,10 +49,11 @@ func main() {
 		}
 		embedder = e
 	} else {
-		log.Print("GEMINI_API_KEY not set: semantic scoring will use neutral fallback (0.5) for all users")
+		log.Print("GEMINI_API_KEY not set: student search and embedding generation are disabled")
 	}
 
 	embeddingRegenerator := usecase.NewEmbeddingRegenerator(profileRepo, embedder, profileRepo, embCache)
+	searchStudentsUC := usecase.NewSearchStudents(profileRepo, embedder)
 
 	getMeUC := usecase.NewGetMe(profileRepo)
 	getUserUC := usecase.NewGetUser(profileRepo)
@@ -71,10 +72,11 @@ func main() {
 	adminStatsUC := usecase.NewAdminStats(adminRepo)
 
 	usersHandler := &delivery.UsersHandler{
-		GetMe:    getMeUC,
-		GetUser:  getUserUC,
-		UpdateMe: updateMeUC,
-		DeleteMe: deleteMeUC,
+		GetMe:          getMeUC,
+		GetUser:        getUserUC,
+		UpdateMe:       updateMeUC,
+		DeleteMe:       deleteMeUC,
+		SearchStudents: searchStudentsUC,
 	}
 	intrestsHandler := &delivery.InterestsHandler{
 		ListCatalog: listInterestsUC,

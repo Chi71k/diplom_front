@@ -35,7 +35,6 @@ const Groups = () => {
     <div className="requests-page">
       <div className="card">
 
-        {/* Header */}
         <div className="requests-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <div className="requests-title">Study Groups</div>

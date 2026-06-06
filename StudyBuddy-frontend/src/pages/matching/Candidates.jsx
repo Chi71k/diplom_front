@@ -52,7 +52,6 @@ const Candidates = () => {
         <div className="find-header">
           <div>
             <div className="find-title">Find study partners</div>
-            <div className="find-sub">Ranked by shared interests (40%), availability (40%), and courses (20%)</div>
           </div>
           <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
             {!loading && `${candidates.length} candidate${candidates.length !== 1 ? 's' : ''}`}

@@ -3,19 +3,10 @@ package usecase
 import (
 	"context"
 	"fmt"
-	"log"
 	"math"
 	"sort"
 	"studybuddy/backend/services/matching/domain"
 	"time"
-)
-
-const (
-	weightSemantic      = 0.35
-	weightAvailability  = 0.30
-	weightCourses       = 0.20
-	weightReputation    = 0.10
-	weightMutualFriends = 0.05
 )
 
 type ListCandidatesInput struct {
@@ -33,7 +24,6 @@ type listCandidates struct {
 	slots       SlotClient
 	courses     CourseClient
 	candidates  CandidateStore
-	embeddings  EmbeddingStore
 	reputation  ReputationClient
 	friendships FriendshipRepository
 }
@@ -44,7 +34,6 @@ func NewListCandidates(
 	slots SlotClient,
 	courses CourseClient,
 	candidates CandidateStore,
-	embeddings EmbeddingStore,
 	reputation ReputationClient,
 	friendships FriendshipRepository,
 ) ListCandidates {
@@ -54,7 +43,6 @@ func NewListCandidates(
 		slots:       slots,
 		courses:     courses,
 		candidates:  candidates,
-		embeddings:  embeddings,
 		reputation:  reputation,
 		friendships: friendships,
 	}
@@ -91,21 +79,14 @@ func (uc *listCandidates) ListCandidates(ctx context.Context, in ListCandidatesI
 	if err != nil {
 		return nil, fmt.Errorf("get my courses: %w", err)
 	}
+	myInterests, err := uc.profiles.GetInterestIDs(ctx, in.RequesterID)
+	if err != nil {
+		return nil, fmt.Errorf("get my interests: %w", err)
+	}
 	mySlots, err := uc.slots.ListForUser(ctx, in.RequesterID)
 	if err != nil {
 		return nil, fmt.Errorf("get my slots: %w", err)
 	}
-
-	allIDs := make([]string, 0, 1+len(candidateIDs))
-	allIDs = append(allIDs, in.RequesterID)
-	allIDs = append(allIDs, candidateIDs...)
-
-	vectorsByUser, err := uc.embeddings.GetEmbeddings(ctx, allIDs)
-	if err != nil {
-		log.Printf("list candidates: batch embeddings: %v", err)
-		vectorsByUser = map[string][]float32{}
-	}
-	requesterVec := vectorsByUser[in.RequesterID]
 
 	allSlots, err := uc.slots.ListForUsers(ctx, candidateIDs)
 	if err != nil {
@@ -121,13 +102,14 @@ func (uc *listCandidates) ListCandidates(ctx context.Context, in ListCandidatesI
 		}
 
 		theirCourses, _ := uc.courses.ListCourseIDsForUser(ctx, cid)
+		theirInterests, _ := uc.profiles.GetInterestIDs(ctx, cid)
 		theirSlots := slotsByUser[cid]
 
 		commonCourses := intersectStrings(myCourses, theirCourses)
 		overlaps := computeOverlaps(mySlots, theirSlots)
 		availScore := availabilityScore(mySlots, theirSlots)
 		courseScore := jaccardScore(myCourses, theirCourses)
-		semanticScore := ScoreSemantic(requesterVec, vectorsByUser[cid])
+		interestScore := jaccardScore(myInterests, theirInterests)
 
 		repScore := uc.reputation.GetAverageRating(ctx, cid)
 
@@ -137,16 +119,9 @@ func (uc *listCandidates) ListCandidates(ctx context.Context, in ListCandidatesI
 		}
 		mutualNorm := math.Min(float64(mutuals)/10.0, 1.0)
 
-		overall := weightSemantic*semanticScore +
-			weightAvailability*availScore +
-			weightCourses*courseScore +
-			weightReputation*repScore +
-			weightMutualFriends*mutualNorm
-
+		overall := ComputeOverallScore(availScore, courseScore, interestScore, repScore, mutualNorm)
 		overlapMin := totalOverlapMinutes(mySlots, theirSlots)
-		if len(commonCourses) >= 2 && overlapMin > 30 {
-			overall = math.Min(overall*1.15, 1.0)
-		}
+		overall = ApplyMatchBonus(overall, len(commonCourses), overlapMin)
 
 		result = append(result, domain.MatchCandidate{
 			UserID:             profile.UserID,
@@ -156,7 +131,8 @@ func (uc *listCandidates) ListCandidates(ctx context.Context, in ListCandidatesI
 			AvatarURL:          profile.AvatarURL,
 			CommonCourses:      commonCourses,
 			CommonSlots:        overlaps,
-			SemanticScore:      semanticScore,
+			SemanticScore:      0, // retained for API compatibility; matching no longer uses embeddings
+			InterestScore:      interestScore,
 			AvailScore:         availScore,
 			CourseScore:        courseScore,
 			ReputationScore:    repScore,
@@ -182,14 +158,14 @@ func applyDiversityFloor(cands []domain.MatchCandidate) {
 		return
 	}
 	for i := 0; i < 5; i++ {
-		if cands[i].SemanticScore <= 0.92 {
+		if cands[i].InterestScore <= 0.92 {
 			return
 		}
 	}
 	var replacement *domain.MatchCandidate
 	best := -1.0
 	for i := 5; i < len(cands); i++ {
-		if cands[i].SemanticScore <= 0.92 && cands[i].OverallScore > best {
+		if cands[i].InterestScore <= 0.92 && cands[i].OverallScore > best {
 			best = cands[i].OverallScore
 			cp := cands[i]
 			replacement = &cp
@@ -198,26 +174,6 @@ func applyDiversityFloor(cands []domain.MatchCandidate) {
 	if replacement != nil {
 		cands[4] = *replacement
 	}
-}
-
-// helpers
-func jaccardScore(a, b []string) float64 {
-	if len(a) == 0 && len(b) == 0 {
-		return 0
-	}
-	setA := toSet(a)
-	setB := toSet(b)
-	intersection := 0
-	for k := range setA {
-		if setB[k] {
-			intersection++
-		}
-	}
-	union := len(setA) + len(setB) - intersection
-	if union == 0 {
-		return 0
-	}
-	return float64(intersection) / float64(union)
 }
 
 func availabilityScore(mine, theirs []SlotData) float64 {

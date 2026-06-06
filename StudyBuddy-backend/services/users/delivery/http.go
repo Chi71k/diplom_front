@@ -18,10 +18,11 @@ var userPathUUID = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-
 
 // UsersHandler exposes user profile HTTP endpoints.
 type UsersHandler struct {
-	GetMe    usecase.GetMe
-	GetUser  usecase.GetUser
-	UpdateMe usecase.UpdateMe
-	DeleteMe usecase.DeleteMe
+	GetMe          usecase.GetMe
+	GetUser        usecase.GetUser
+	UpdateMe       usecase.UpdateMe
+	DeleteMe       usecase.DeleteMe
+	SearchStudents usecase.SearchStudents
 }
 
 // UserProfileResponse matches OpenAPI UserProfile (minimal).

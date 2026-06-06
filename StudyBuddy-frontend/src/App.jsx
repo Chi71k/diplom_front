@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import { useAuth } from './context/useAuth'
 import { ToastProvider } from './context/ToastContext'
+import { ThemeProvider } from './context/ThemeContext'
 import { apiGetProfile } from './api'
 import './App.css'
 import AppLayout from './components/AppLayout'
@@ -29,6 +30,7 @@ import AdminStats from './pages/admin/AdminStats'
 import Match from './pages/match/Match'
 import Study from './pages/study/Study'
 import UserProfile from './pages/users/UserProfile'
+import SemanticSearch from './pages/search/SemanticSearch'
 
 
 function RequireAdmin({ children }) {
@@ -99,11 +101,8 @@ function AppRoutes() {
         <Route path="courses/:id" element={<CourseDetail />} />
         <Route path="courses/:id/edit" element={<CourseForm edit />} />
         <Route path="interests" element={<Interests />} />
-        {/* New consolidated routes */}
         <Route path="match" element={<Match />} />
         <Route path="study" element={<Study />} />
-
-        {/* Legacy routes — keep working for deep links */}
         <Route path="matching/candidates" element={<Candidates />} />
         <Route path="matching/requests" element={<Requests />} />
         <Route path="availability" element={<Availability />} />
@@ -113,6 +112,7 @@ function AppRoutes() {
         <Route path="groups/:id" element={<GroupDetail />} />
         <Route path="groups/:id/edit" element={<GroupForm edit />} />
         <Route path="sessions" element={<Sessions />} />
+        <Route path="search" element={<SemanticSearch />} />
         <Route path="points" element={<Points />} />
         <Route path="reviews" element={<Reviews />} />
         <Route path="users/:id" element={<UserProfile />} />
@@ -126,15 +126,17 @@ function AppRoutes() {
 }
 
 const App = () => (
-  <AuthProvider>
-    <ToastProvider>
-      <BrowserRouter>
-        <div className="app-root">
-          <AppRoutes />
-        </div>
-      </BrowserRouter>
-    </ToastProvider>
-  </AuthProvider>
+  <ThemeProvider>
+    <AuthProvider>
+      <ToastProvider>
+        <BrowserRouter>
+          <div className="app-root">
+            <AppRoutes />
+          </div>
+        </BrowserRouter>
+      </ToastProvider>
+    </AuthProvider>
+  </ThemeProvider>
 )
 
 export default App

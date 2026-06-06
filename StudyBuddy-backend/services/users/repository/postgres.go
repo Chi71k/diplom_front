@@ -123,6 +123,14 @@ func (r *PgProfileRepository) ListUsers(ctx context.Context, filter domain.Admin
 		args = append(args, *filter.IsActive)
 		argPos++
 	}
+	if filter.Search != nil && *filter.Search != "" {
+		conds = append(conds, fmt.Sprintf(
+			"(first_name ILIKE $%d OR last_name ILIKE $%d OR email ILIKE $%d OR CONCAT(first_name, ' ', last_name) ILIKE $%d)",
+			argPos, argPos, argPos, argPos,
+		))
+		args = append(args, "%"+*filter.Search+"%")
+		argPos++
+	}
 	where := ""
 	if len(conds) > 0 {
 		where = "WHERE " + strings.Join(conds, " AND ")

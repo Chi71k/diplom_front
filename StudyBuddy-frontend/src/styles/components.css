@@ -1,0 +1,234 @@
+/* ══════════════════════════════
+   REVIEWS PAGE
+══════════════════════════════ */
+.review-avatar-link { display: block; flex-shrink: 0; }
+.review-avatar-link .avatar { transition: opacity .15s; }
+.review-avatar-link:hover .avatar { opacity: .85; }
+
+.review-name-link {
+  color: var(--text); font-weight: 700; font-size: 15px;
+  transition: color .15s;
+}
+.review-name-link:hover { color: var(--primary); }
+
+.review-row-header {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.review-date { font-size: 12px; color: var(--muted); margin-left: auto; }
+
+/* ══════════════════════════════
+   FORM INPUTS  (shared across pages)
+══════════════════════════════ */
+.form-input {
+  width: 100%; padding: 9px 12px;
+  border: 1px solid var(--border); border-radius: 8px;
+  font-size: 14px; outline: none; background: var(--card);
+  font-family: inherit;
+  transition: border-color .15s;
+}
+.form-input:focus { border-color: #60a5fa; }
+
+.form-label {
+  font-size: 12px; color: var(--muted);
+  margin-bottom: 6px; display: block;
+}
+.form-label-hint { color: var(--muted-lt); margin-left: 4px; }
+
+.form-row { display: flex; gap: 12px; }
+.form-row > div { flex: 1; }
+
+/* ══════════════════════════════
+   STATUS BADGES
+══════════════════════════════ */
+.status-badge {
+  font-size: 11px; font-weight: 700;
+  padding: 3px 8px; border-radius: 5px;
+  display: inline-block;
+}
+.status-badge--proposed  { background: #fef9c3; color: #a16207; }
+.status-badge--confirmed { background: #dcfce7; color: #15803d; }
+.status-badge--canceled  { background: #f1f5f9; color: #94a3b8; }
+
+.organizer-badge {
+  font-size: 11px; color: var(--muted);
+  background: var(--bg); padding: 2px 7px;
+  border-radius: 5px; border: 1px solid var(--border);
+}
+
+/* ══════════════════════════════
+   SESSIONS PAGE
+══════════════════════════════ */
+.session-form {
+  margin: 0 20px 20px;
+  padding: 18px;
+  background: var(--bg);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 14px;
+}
+.session-meta { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+/* ══════════════════════════════
+   GROUPS PAGE
+══════════════════════════════ */
+.group-icon {
+  width: 44px; height: 44px; border-radius: 12px;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; font-weight: 800;
+}
+.group-desc     { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.group-meta-row { display: flex; gap: 10px; margin-top: 6px; flex-wrap: wrap; }
+.group-meta-item { font-size: 12px; color: var(--muted); }
+.group-arrow    { color: var(--muted); font-size: 18px; flex-shrink: 0; }
+
+/* ══════════════════════════════
+   POINTS & LEADERBOARD
+══════════════════════════════ */
+.points-hero {
+  margin: 16px 20px;
+  padding: 24px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border: 1px solid #bfdbfe;
+  text-align: center;
+}
+.points-score {
+  font-size: 56px; font-weight: 800;
+  color: var(--primary); line-height: 1;
+}
+.points-score-label { color: var(--muted); font-size: 14px; margin-top: 6px; }
+.points-rank-badge  { margin-left: 8px; font-weight: 700; color: #d97706; }
+
+.points-activity-wrap { padding: 0 20px 16px; }
+.points-activity-label {
+  font-size: 13px; font-weight: 700; color: var(--muted);
+  margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.points-tx-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 0; border-bottom: 1px solid var(--border);
+}
+.points-tx-info { flex: 1; }
+.points-tx-name { font-size: 14px; font-weight: 500; color: var(--text); }
+.points-tx-date { font-size: 12px; color: var(--muted); }
+.points-amount      { font-size: 15px; font-weight: 800; }
+.points-amount--pos { color: #15803d; }
+.points-amount--neg { color: #dc2626; }
+
+.leaderboard-wrap { padding: 12px 20px 16px; }
+.leaderboard-search { display: flex; gap: 8px; margin-bottom: 16px; }
+.leaderboard-search-input {
+  flex: 1; padding: 9px 12px;
+  border: 1px solid var(--border); border-radius: 8px;
+  font-size: 14px; outline: none; font-family: inherit;
+}
+.leaderboard-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 4px; border-bottom: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background .12s;
+  color: var(--text);
+}
+.leaderboard-row:hover { background: var(--bg); }
+.leaderboard-row--me {
+  background: var(--blue-50);
+}
+.leaderboard-rank  {
+  min-width: 32px; text-align: center; flex-shrink: 0;
+  font-size: 14px; font-weight: 700; color: var(--muted);
+}
+.leaderboard-name      { flex: 1; font-size: 14px; color: var(--text); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.leaderboard-name--me  { font-weight: 700; }
+.leaderboard-loading   { font-size: 13px; color: var(--muted-lt); }
+.leaderboard-me-tag    { font-size: 11px; color: var(--primary); font-weight: 700; }
+.leaderboard-score     { font-size: 15px; font-weight: 700; color: var(--primary); flex-shrink: 0; }
+
+.mini-stars { display: flex; align-items: center; gap: 1px; flex-shrink: 0; font-size: 15px; }
+.mini-stars-num { font-size: 13px; font-weight: 700; color: var(--muted); margin-left: 5px; }
+
+/* ══════════════════════════════
+   ADMIN USERS PAGE
+══════════════════════════════ */
+.admin-filters {
+  padding: 0 20px 16px;
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+}
+.admin-filter-form { display: flex; gap: 8px; flex: 1; min-width: 200px; }
+
+.user-badges { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.admin-user-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.admin-user-id {
+  margin-left: 8px; font-family: monospace;
+  font-size: 11px; color: var(--muted-lt);
+}
+
+.pagination {
+  display: flex; justify-content: center; align-items: center;
+  gap: 12px; padding: 16px 20px;
+  border-top: 1px solid var(--border);
+}
+.pagination-info { font-size: 13px; color: var(--muted); }
+
+/* Role and active state badges */
+.role-badge {
+  font-size: 11px; font-weight: 700;
+  padding: 2px 8px; border-radius: 5px;
+  display: inline-block;
+}
+.role-badge--admin   { background: #ede9fe; color: #7c3aed; }
+.role-badge--student { background: #f1f5f9; color: #64748b; }
+
+.active-badge {
+  font-size: 11px; font-weight: 700;
+  padding: 2px 8px; border-radius: 5px;
+  display: inline-block;
+}
+.active-badge--yes { background: #dcfce7; color: #15803d; }
+.active-badge--no  { background: #fee2e2; color: #dc2626; }
+
+/* ══════════════════════════════
+   ADMIN STATS PAGE
+══════════════════════════════ */
+.stats-content { padding: 8px 20px 24px; }
+.stats-section-label {
+  font-size: 12px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+.stats-group { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; }
+.stat-card {
+  padding: 20px 24px; border-radius: 12px;
+  background: var(--card); border: 1px solid var(--border);
+  text-align: center; flex: 1 1 140px;
+}
+.stat-card-value { font-size: 36px; font-weight: 800; line-height: 1; }
+.stat-card-label { font-size: 13px; color: var(--muted); margin-top: 6px; }
+
+/* ══════════════════════════════
+   DARK MODE OVERRIDES
+   (for elements with hardcoded light-mode colors)
+══════════════════════════════ */
+[data-theme="dark"] .points-hero {
+  background: linear-gradient(135deg, #1e3a5f 0%, #1e3462 100%);
+  border-color: #2d4a7a;
+}
+
+[data-theme="dark"] .status-badge--proposed  { background: #422006; color: #fbbf24; }
+[data-theme="dark"] .status-badge--confirmed { background: #052e16; color: #4ade80; }
+[data-theme="dark"] .status-badge--canceled  { background: #1e293b; color: #94a3b8; }
+
+[data-theme="dark"] .active-badge--yes { background: #052e16; color: #4ade80; }
+[data-theme="dark"] .active-badge--no  { background: #450a0a; color: #f87171; }
+
+[data-theme="dark"] .role-badge--admin   { background: #2e1065; color: #a78bfa; }
+[data-theme="dark"] .role-badge--student { background: #1e293b; color: #94a3b8; }
+
+[data-theme="dark"] .req-mini-accept  { background: #052e16; color: #4ade80; }
+[data-theme="dark"] .req-mini-decline { background: #450a0a; color: #f87171; }
+
+[data-theme="dark"] .leaderboard-row--me { background: #1e3a5f; }
+
+[data-theme="dark"] .form-input { background: var(--bg); color: var(--text); }
+[data-theme="dark"] .leaderboard-search-input { background: var(--bg); color: var(--text); }

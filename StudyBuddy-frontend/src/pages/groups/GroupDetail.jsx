@@ -10,6 +10,7 @@ import {
   apiGetGroupSuggestions,
   apiGetUserById,
   apiListCourses,
+  apiGetFriends,
 } from '../../api'
 import { avatarColor } from '../../utils/avatar'
 
@@ -29,6 +30,7 @@ const GroupDetail = () => {
   const [suggestions, setSuggestions] = useState([])
   const [memberProfiles, setMemberProfiles] = useState({}) // userId → profile
   const [courseMap, setCourseMap]     = useState({})       // courseId → course
+  const [friends, setFriends]         = useState([])
   const [loading, setLoading]         = useState(true)
   const [inviteId, setInviteId]       = useState('')
   const [acting, setActing]           = useState(null)
@@ -36,14 +38,24 @@ const GroupDetail = () => {
   const load = async () => {
     setLoading(true)
     try {
-      const [g, s] = await Promise.all([
+      const [g, s, fr] = await Promise.all([
         apiGetGroup(id),
         apiGetGroupSuggestions(id, 5).catch(() => ({ items: [] })),
+        apiGetFriends().catch(() => ({ items: [] })),
       ])
+      const friendIds = fr.items ?? fr ?? []
+      if (friendIds.length > 0) {
+        const frResults = await Promise.allSettled(friendIds.map(fid => apiGetUserById(fid)))
+        setFriends(friendIds.map((fid, i) => {
+          const p = frResults[i].status === 'fulfilled' ? frResults[i].value : null
+          return { id: fid, firstName: p?.firstName ?? '', lastName: p?.lastName ?? '', avatarUrl: p?.avatarUrl }
+        }))
+      } else {
+        setFriends([])
+      }
       setGroup(g)
       setSuggestions(s.items ?? [])
 
-      // Fetch member profiles in parallel
       if (g.members?.length) {
         const results = await Promise.allSettled(g.members.map((m) => apiGetUserById(m.userId)))
         const map = {}
@@ -53,7 +65,6 @@ const GroupDetail = () => {
         setMemberProfiles(map)
       }
 
-      // Fetch course names
       if (g.courseIds?.length) {
         const allCourses = await apiListCourses({ limit: 200 }).catch(() => [])
         const courses = Array.isArray(allCourses) ? allCourses : []
@@ -135,7 +146,6 @@ const GroupDetail = () => {
     <div className="requests-page">
       <div className="card">
 
-        {/* Header */}
         <div className="requests-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -173,7 +183,6 @@ const GroupDetail = () => {
           )}
         </div>
 
-        {/* Members */}
         <div style={{ padding: '0 20px 20px' }}>
           <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '12px', color: 'var(--text)' }}>
             Members ({memberCount})
@@ -245,29 +254,69 @@ const GroupDetail = () => {
 
           {/* Invite */}
           {isOwner && (
-            <form onSubmit={handleInvite} style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-              <input
-                style={{
-                  flex: 1, padding: '9px 12px',
-                  border: '1px solid var(--border)', borderRadius: '8px',
-                  fontSize: '14px', outline: 'none',
-                }}
-                placeholder="Paste User ID to invite…"
-                value={inviteId}
-                onChange={(e) => setInviteId(e.target.value)}
-              />
-              <button
-                type="submit"
-                className="btn btn-primary btn-sm"
-                disabled={acting === 'invite'}
-              >
-                Invite
-              </button>
-            </form>
+            <div style={{ marginTop: '16px' }}>
+              {(() => {
+                const memberIds = new Set(group.members?.map(m => m.userId) ?? [])
+                const available = friends.filter(f => !memberIds.has(f.id))
+                if (available.length === 0) return null
+                return (
+                  <div style={{ marginBottom: '12px' }}>
+                    <div style={{ fontSize: '12px', color: 'var(--muted)', fontWeight: 600, marginBottom: '8px' }}>
+                      Invite from partners
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {available.map(f => {
+                        const fname = `${f.firstName ?? ''} ${f.lastName ?? ''}`.trim() || f.id?.slice(0, 8)
+                        return (
+                          <button
+                            key={f.id}
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            disabled={acting === f.id}
+                            onClick={async () => {
+                              setActing(f.id)
+                              try {
+                                await apiInviteMember(id, f.id)
+                                toast.success(`${fname} invited!`)
+                                load()
+                              } catch (e) {
+                                toast.error(e.error || 'Failed to invite')
+                              } finally { setActing(null) }
+                            }}
+                          >
+                            + {fname}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )
+              })()}
+
+              <form onSubmit={handleInvite} style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  style={{
+                    flex: 1, padding: '9px 12px',
+                    border: '1px solid var(--border)', borderRadius: '8px',
+                    fontSize: '14px', outline: 'none',
+                    background: 'var(--card)', color: 'var(--text)',
+                  }}
+                  placeholder="Or paste User ID…"
+                  value={inviteId}
+                  onChange={(e) => setInviteId(e.target.value)}
+                />
+                <button
+                  type="submit"
+                  className="btn btn-primary btn-sm"
+                  disabled={acting === 'invite'}
+                >
+                  Invite
+                </button>
+              </form>
+            </div>
           )}
         </div>
 
-        {/* AI suggestions */}
         {suggestions.length > 0 && (
           <div style={{ borderTop: '1px solid var(--border)', padding: '16px 20px' }}>
             <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '12px' }}>

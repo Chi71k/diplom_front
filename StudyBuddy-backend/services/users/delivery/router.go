@@ -21,6 +21,7 @@ func NewRouter(h *UsersHandler, ih *InterestsHandler, fh *FriendsHandler, ah *Ad
 		r.Get("/api/v1/users/me", h.HandleGetMe)
 		r.Put("/api/v1/users/me", h.HandleUpdateMe)
 		r.Delete("/api/v1/users/me", h.HandleDeleteMe)
+		r.Get("/api/v1/users/search", h.HandleSearchStudents)
 		r.Get("/api/v1/users/{id}", h.HandleGetUser)
 
 		r.Get("/api/v1/interests", ih.HandleListCatalog)

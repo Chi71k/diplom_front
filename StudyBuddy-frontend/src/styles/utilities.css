@@ -1,0 +1,67 @@
+/* ── Empty / Loading states ── */
+.empty-state {
+  padding: clamp(24px, 5vw, 40px); text-align: center;
+  color: var(--muted); font-size: 15px;
+}
+.loading-state {
+  padding: clamp(24px, 5vw, 40px); text-align: center;
+  color: var(--muted); font-size: 15px;
+}
+
+/* ── Page tab bar  (Match / Study pages) ── */
+.page-tab-bar {
+  display: flex;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 6px;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+.page-tab-btn {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center;
+  gap: 7px;
+  padding: 10px 8px;
+  border-radius: 8px;
+  font-size: 14px; font-weight: 600;
+  color: var(--muted);
+  transition: background .15s, color .15s;
+  min-height: 44px;
+  border: none; background: none; cursor: pointer;
+}
+.page-tab-btn:hover { color: var(--text); background: var(--bg); }
+.page-tab-btn.active {
+  background: var(--primary);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(37,99,235,.25);
+}
+.page-tab-btn svg { flex-shrink: 0; }
+
+@media (max-width: 400px) {
+  .page-tab-btn span { display: none; }
+  .page-tab-btn { padding: 10px; }
+}
+
+/* ── Large screens 1400px+ ── */
+@media (min-width: 1400px) {
+  .page-wrap { max-width: 1440px; }
+  .dash-layout {
+    grid-template-columns: 280px 1fr 320px;
+    gap: 24px;
+  }
+  .find-page,
+  .profile-page,
+  .requests-page,
+  .courses-page { max-width: 960px; }
+}
+
+/* ── Small screens 320–360px ── */
+@media (max-width: 360px) {
+  .match-badge { display: none; }
+}
+@media (max-width: 340px) {
+  .course-item-icon { display: none; }
+  .course-icon      { display: none; }
+}

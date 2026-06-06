@@ -16,7 +16,7 @@ const Profile = () => {
   const [loading, setLoading] = useState(!profile)
   const [loadError, setLoadError] = useState('')
   const [editing, setEditing] = useState(false)
-  const [form, setForm] = useState({ firstName: '', lastName: '', bio: '', avatarUrl: '' })
+  const [form, setForm] = useState({ firstName: '', lastName: '', bio: '', avatarUrl: '', telegramTag: '' })
   const [saving, setSaving] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [avatarError, setAvatarError] = useState(false)
@@ -43,10 +43,11 @@ const Profile = () => {
       setProfile(data)
       setInterests(interestsData.items ?? [])
       setForm({
-        firstName: data.firstName || '',
-        lastName:  data.lastName  || '',
-        bio:       data.bio       || '',
-        avatarUrl: data.avatarUrl || '',
+        firstName:   data.firstName   || '',
+        lastName:    data.lastName    || '',
+        bio:         data.bio         || '',
+        avatarUrl:   data.avatarUrl   || '',
+        telegramTag: data.telegramTag || '',
       })
     } catch (e) {
       setLoadError(e.error || 'Failed to load profile')
@@ -58,10 +59,11 @@ const Profile = () => {
   useEffect(() => {
     if (profile) {
       setForm({
-        firstName: profile.firstName || '',
-        lastName:  profile.lastName  || '',
-        bio:       profile.bio       || '',
-        avatarUrl: profile.avatarUrl || '',
+        firstName:   profile.firstName   || '',
+        lastName:    profile.lastName    || '',
+        bio:         profile.bio         || '',
+        avatarUrl:   profile.avatarUrl   || '',
+        telegramTag: profile.telegramTag || '',
       })
       Promise.all([
         apiGetMyInterests(),
@@ -87,10 +89,11 @@ const Profile = () => {
     setSaving(true)
     try {
       const body = {}
-      if (form.firstName !== (profile?.firstName ?? '')) body.firstName = form.firstName
-      if (form.lastName  !== (profile?.lastName  ?? '')) body.lastName  = form.lastName
-      if (form.bio       !== (profile?.bio       ?? '')) body.bio       = form.bio
-      if (form.avatarUrl !== (profile?.avatarUrl ?? '')) body.avatarUrl = form.avatarUrl
+      if (form.firstName   !== (profile?.firstName   ?? '')) body.firstName   = form.firstName
+      if (form.lastName    !== (profile?.lastName    ?? '')) body.lastName    = form.lastName
+      if (form.bio         !== (profile?.bio         ?? '')) body.bio         = form.bio
+      if (form.avatarUrl   !== (profile?.avatarUrl   ?? '')) body.avatarUrl   = form.avatarUrl
+      if (form.telegramTag !== (profile?.telegramTag ?? '')) body.telegramTag = form.telegramTag
       const data = await apiUpdateProfile(body)
       setProfile(data)
       setEditing(false)
@@ -161,13 +164,24 @@ const Profile = () => {
 
         <div className="profile-name">{profile.firstName} {profile.lastName}</div>
         <div className="profile-subtitle">{profile.email}</div>
+        {profile.telegramTag && (
+          <div style={{ fontSize: '14px', marginTop: '6px' }}>
+            <a
+              href={`https://t.me/${profile.telegramTag.replace(/^@/, '')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: '#0088cc', textDecoration: 'none', fontWeight: 500 }}
+            >
+              @{profile.telegramTag.replace(/^@/, '')}
+            </a>
+          </div>
+        )}
         {profile.bio && (
           <div style={{ fontSize: '15px', color: 'var(--muted)', marginTop: '10px', lineHeight: 1.6 }}>
             {profile.bio}
           </div>
         )}
 
-        {/* My ID — for sharing with others for group invites */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           gap: 12, margin: '12px 0 4px',
@@ -208,7 +222,6 @@ const Profile = () => {
         </div>
       </div>
 
-      {/* Edit form */}
       {editing && (
         <div className="card p-section" style={{ marginTop: '16px' }}>
           <div className="p-section-head">
@@ -228,6 +241,10 @@ const Profile = () => {
             <textarea className="profile-input profile-textarea" value={form.bio}
               onChange={(e) => setForm((f) => ({ ...f, bio: e.target.value }))}
               placeholder="Tell us about your study goals" rows={3} />
+            <label className="profile-label">Telegram</label>
+            <input className="profile-input" value={form.telegramTag}
+              onChange={(e) => setForm((f) => ({ ...f, telegramTag: e.target.value.replace(/^@+/, '') }))}
+              placeholder="username (without @)" />
             <label className="profile-label">Profile photo URL</label>
             <input className="profile-input" type="url" value={form.avatarUrl}
               onChange={(e) => setForm((f) => ({ ...f, avatarUrl: e.target.value }))}
@@ -245,7 +262,6 @@ const Profile = () => {
         </div>
       )}
 
-      {/* Interests section */}
       <div className="card p-section" style={{ marginTop: '16px' }}>
         <div className="p-section-head">
           <span className="p-section-title">Interests</span>
@@ -267,7 +283,6 @@ const Profile = () => {
         </div>
       </div>
 
-      {/* Courses section */}
       <div className="card p-section" style={{ marginTop: '16px' }}>
         <div className="p-section-head">
           <span className="p-section-title">Courses</span>
@@ -298,7 +313,6 @@ const Profile = () => {
         </div>
       </div>
 
-      {/* Partners section */}
       <div className="card p-section" style={{ marginTop: '16px' }}>
         <div className="p-section-head">
           <span className="p-section-title">Partners</span>
@@ -317,7 +331,6 @@ const Profile = () => {
         </div>
       </div>
 
-      {/* Danger zone */}
       <div className="card p-section profile-danger-card" style={{ marginTop: '16px' }}>
         <div className="p-section-head">
           <span className="p-section-title">Danger zone</span>

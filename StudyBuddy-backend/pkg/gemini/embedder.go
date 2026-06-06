@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	embedModel       = "models/text-embedding-004"
-	embedURL         = "https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent"
+	embedModel       = "models/gemini-embedding-2"
+	embedURL         = "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:embedContent"
 	embeddingDims    = 768
 	embedHTTPTimeout = 10 * time.Second
 )
@@ -51,9 +51,10 @@ func (NoOpEmbedder) EmbedText(context.Context, string) ([]float32, error) {
 }
 
 type embedRequest struct {
-	Model    string         `json:"model"`
-	Content  contentWrapper `json:"content"`
-	TaskType string         `json:"taskType,omitempty"`
+	Model               string         `json:"model"`
+	Content             contentWrapper `json:"content"`
+	TaskType            string         `json:"taskType,omitempty"`
+	OutputDimensionality int           `json:"outputDimensionality,omitempty"`
 }
 
 type contentWrapper struct {
@@ -78,8 +79,9 @@ func (c *httpEmbedder) EmbedText(ctx context.Context, text string) ([]float32, e
 	defer cancel()
 
 	body := embedRequest{
-		Model:    embedModel,
-		TaskType: "SEMANTIC_SIMILARITY",
+		Model:                embedModel,
+		TaskType:             "SEMANTIC_SIMILARITY",
+		OutputDimensionality: embeddingDims,
 	}
 	body.Content.Parts = []struct {
 		Text string `json:"text"`

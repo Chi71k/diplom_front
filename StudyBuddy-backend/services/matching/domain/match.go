@@ -29,7 +29,8 @@ type MatchCandidate struct {
 	AvatarURL          string
 	CommonCourses      []string
 	CommonSlots        []SlotOverlap
-	SemanticScore      float64 // 0-1, cosine similarity of stored embeddings
+	SemanticScore      float64 // retained for API compatibility; always 0 (embeddings not used here)
+	InterestScore      float64 // 0-1, shared interests proportion (Jaccard)
 	AvailScore         float64 // 0-1, temporal overlap ratio
 	CourseScore        float64 // 0-1, shared courses proportion (Jaccard)
 	ReputationScore    float64 // 0-1, normalised peer rating

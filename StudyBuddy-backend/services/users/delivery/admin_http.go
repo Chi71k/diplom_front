@@ -51,25 +51,42 @@ func (h *AdminHandler) HandleListUsers(w http.ResponseWriter, r *http.Request) {
 	if role := q.Get("role"); role != "" {
 		filter.Role = &role
 	}
-	if v := q.Get("is_active"); v != "" {
-		active, err := strconv.ParseBool(v)
+	// Accept both "is_active" and "active" for compatibility
+	activeParam := q.Get("is_active")
+	if activeParam == "" {
+		activeParam = q.Get("active")
+	}
+	if activeParam != "" {
+		active, err := strconv.ParseBool(activeParam)
 		if err != nil {
-			httputil.Error(w, http.StatusBadRequest, "invalid is_active parameter")
+			httputil.Error(w, http.StatusBadRequest, "invalid active parameter")
 			return
 		}
 		filter.IsActive = &active
 	}
+	if s := q.Get("search"); s != "" {
+		filter.Search = &s
+	}
 
+	// Support both page/page_size and limit/offset
+	pageSize := 20
+	if ps := q.Get("page_size"); ps != "" {
+		if n, err := strconv.Atoi(ps); err == nil && n > 0 {
+			pageSize = n
+		}
+	} else if l := q.Get("limit"); l != "" {
+		if n, err := strconv.Atoi(l); err == nil && n > 0 {
+			pageSize = n
+		}
+	}
 	page := 1
 	if p := q.Get("page"); p != "" {
 		if n, err := strconv.Atoi(p); err == nil && n > 0 {
 			page = n
 		}
-	}
-	pageSize := 20
-	if ps := q.Get("page_size"); ps != "" {
-		if n, err := strconv.Atoi(ps); err == nil && n > 0 {
-			pageSize = n
+	} else if off := q.Get("offset"); off != "" {
+		if n, err := strconv.Atoi(off); err == nil && n >= 0 {
+			page = n/pageSize + 1
 		}
 	}
 

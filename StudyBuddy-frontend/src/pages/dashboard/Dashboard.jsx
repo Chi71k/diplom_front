@@ -31,6 +31,7 @@ const Avatar = ({ name, url, size = 'avatar-md' }) => {
 const Dashboard = () => {
   const { profile } = useAuth()
   const toast = useToast()
+  const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({ courses: null, matches: null, pending: null })
   const [candidates, setCandidates] = useState([])
   const [pendingReqs, setPendingReqs] = useState([])
@@ -41,6 +42,7 @@ const Dashboard = () => {
 
   useEffect(() => {
     const load = async () => {
+      setLoading(true)
       try {
         const [coursesData, acceptedData, pendingData, candsData, interestsData, slotsData] = await Promise.all([
           apiListCourses({ limit: 100 }),
@@ -77,8 +79,10 @@ const Dashboard = () => {
           }
         }
         setReqUsers(cache)
-      } catch {
-        // non-critical
+      } catch (e) {
+        toast.error(e?.error || 'Failed to load dashboard')
+      } finally {
+        setLoading(false)
       }
     }
     load()
@@ -102,7 +106,6 @@ const Dashboard = () => {
 
   return (
     <div className="dash-layout">
-      {/* ── Left: user card ── */}
       <aside>
         <div className="card user-card">
           <div className="user-card-banner" />
@@ -150,7 +153,6 @@ const Dashboard = () => {
         </div>
       </aside>
 
-      {/* ── Center: recommended partners ── */}
       <main>
         <div className="card" style={{ marginBottom: '14px' }}>
           <div className="section-header">
@@ -161,21 +163,25 @@ const Dashboard = () => {
             <Link to="/matching/candidates" className="section-link">See all</Link>
           </div>
 
-          {candidates.length === 0 && (
+          {loading && <div className="loading-state">Loading recommendations…</div>}
+
+          {!loading && candidates.length === 0 && (
             <div className="empty-state">
               No candidates yet. Fill in your interests and availability to get matches.
             </div>
           )}
 
-          {candidates.map((c) => (
+          {!loading && candidates.map((c) => (
             <div key={c.userId} className="rec-card">
-              <Avatar name={c.firstName} url={c.avatarUrl} size="avatar-md" />
+              <Link to={`/users/${c.userId}`} style={{ flexShrink: 0 }}>
+                <Avatar name={c.firstName} url={c.avatarUrl} size="avatar-md" />
+              </Link>
               <div className={`match-badge ${matchClass(c.overallScore)}`}>
                 <span className="match-pct">{Math.round(c.overallScore * 100)}%</span>
                 <span className="match-label">match</span>
               </div>
               <div className="rec-info">
-                <div className="rec-name">{c.firstName} {c.lastName}</div>
+                <Link to={`/users/${c.userId}`} className="rec-name" style={{ color: 'var(--primary)', textDecoration: 'none' }}>{c.firstName} {c.lastName}</Link>
                 <div className="rec-role">
                   {c.commonCourses?.length > 0 && `${c.commonCourses.length} shared course${c.commonCourses.length > 1 ? 's' : ''}`}
                   {c.commonCourses?.length > 0 && c.commonSlots?.length > 0 && ' · '}
@@ -191,18 +197,18 @@ const Dashboard = () => {
         </div>
       </main>
 
-      {/* ── Right: widgets ── */}
       <aside>
-        {/* Incoming requests widget */}
         <div className="card widget">
           <div className="widget-header">
             <span className="widget-title">Incoming requests</span>
             <Link to="/matching/requests" className="widget-link">All</Link>
           </div>
 
-          {pendingReqs.length === 0
+          {loading && <div className="widget-empty">Loading…</div>}
+
+          {!loading && pendingReqs.length === 0
             ? <div className="widget-empty">No pending requests.</div>
-            : pendingReqs.map((r) => {
+            : !loading && pendingReqs.map((r) => {
                 const u = reqUsers[r.requesterId]
                 const name = u ? `${u.firstName} ${u.lastName}` : '...'
                 return (
@@ -234,14 +240,15 @@ const Dashboard = () => {
           }
         </div>
 
-        {/* Schedule widget */}
         <div className="card widget">
           <div className="widget-header">
             <span className="widget-title">My schedule</span>
             <Link to="/availability" className="widget-link">Edit</Link>
           </div>
 
-          {slots.length === 0
+          {loading && <div className="widget-empty">Loading…</div>}
+
+          {!loading && (slots.length === 0
             ? <div className="widget-empty">No slots added yet.</div>
             : slots.map((s) => (
                 <div key={s.id} className="sched-item">
@@ -256,10 +263,9 @@ const Dashboard = () => {
                   </div>
                 </div>
               ))
-          }
+          )}
         </div>
 
-        {/* Interests widget */}
         {interests.length > 0 && (
           <div className="card widget">
             <div className="widget-header">

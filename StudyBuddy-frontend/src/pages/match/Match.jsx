@@ -43,7 +43,6 @@ export default function Match() {
 
   return (
     <div style={{ maxWidth: 860, margin: '0 auto' }}>
-      {/* Tab bar */}
       <div className="page-tab-bar">
         {TABS.map(({ key, label, icon }) => (
           <button
@@ -58,7 +57,6 @@ export default function Match() {
         ))}
       </div>
 
-      {/* Content — reuse existing page components */}
       {tab === 'find'     && <Candidates />}
       {tab === 'requests' && <Requests />}
       {tab === 'partners' && <Partners />}

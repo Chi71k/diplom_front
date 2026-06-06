@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/useAuth'
 import {
+  apiListMyReviews,
   apiListReviewsForUser,
   apiGetMatchRequests,
   apiGetUserById,
@@ -49,25 +51,35 @@ const Reviews = () => {
       setLoading(true)
       try {
         const [reviewsData, requestsData] = await Promise.all([
-          apiListReviewsForUser(profile.id),
+          apiListMyReviews(),
           apiGetMatchRequests({ status: 'accepted', limit: 100 }),
         ])
-        setMyReviews(reviewsData ?? [])
-
         const items = requestsData.items ?? []
         const pairs = items.map((r) => ({
           matchId: r.id,
           partnerId: r.requesterId === profile.id ? r.receiverId : r.requesterId,
         }))
 
-        const results = await Promise.allSettled(
-          pairs.map(({ partnerId }) => apiGetUserById(partnerId))
-        )
+        const [userResults, partnerReviewResults] = await Promise.all([
+          Promise.allSettled(pairs.map(({ partnerId }) => apiGetUserById(partnerId))),
+          Promise.allSettled(pairs.map(({ partnerId }) => apiListReviewsForUser(partnerId))),
+        ])
+
+        // Collect reviews given by current user that appear on partners' profiles
+        const givenByMe = partnerReviewResults
+          .filter((r) => r.status === 'fulfilled')
+          .flatMap((r) => r.value ?? [])
+          .filter((r) => r.reviewerId === profile.id)
+
+        // Merge received + given, deduplicate by id
+        const received = reviewsData ?? []
+        const allReviews = [...received, ...givenByMe.filter((g) => !received.find((r) => r.id === g.id))]
+        setMyReviews(allReviews)
 
         // Keep all partners even if name lookup fails — use ID as fallback
         const enriched = pairs.map(({ matchId, partnerId }, i) => {
-          const user = results[i].status === 'fulfilled'
-            ? results[i].value
+          const user = userResults[i].status === 'fulfilled'
+            ? userResults[i].value
             : { id: partnerId, firstName: partnerId?.slice(0, 8) ?? '?', lastName: '' }
           return { ...user, matchId }
         })
@@ -110,8 +122,10 @@ const Reviews = () => {
   const fmt = (iso) =>
     new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
+  const partnerById = (id) => partners.find((x) => x.id === id)
+
   const partnerName = (id) => {
-    const p = partners.find((x) => x.id === id)
+    const p = partnerById(id)
     if (!p) return id?.slice(0, 8) ?? id
     return `${p.firstName} ${p.lastName}`.trim() || id?.slice(0, 8)
   }
@@ -120,7 +134,6 @@ const Reviews = () => {
     <div className="requests-page">
       <div className="card">
 
-        {/* Header */}
         <div className="requests-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <div className="requests-title">Reviews</div>
@@ -134,7 +147,6 @@ const Reviews = () => {
           </button>
         </div>
 
-        {/* Write review form */}
         {showForm && (
           <form
             onSubmit={handleSubmit}
@@ -227,7 +239,6 @@ const Reviews = () => {
           </form>
         )}
 
-        {/* Tabs */}
         <div className="tabs">
           {[
             { key: 'received', label: `Received (${received.length})` },
@@ -250,39 +261,50 @@ const Reviews = () => {
           <div className="empty-state">No {tab} reviews yet.</div>
         )}
 
-        {!loading && shown.map((r) => {
-          const otherId = tab === 'received' ? r.reviewerId : r.revieweeId
-          const name = partnerName(otherId)
-          return (
-            <div key={r.id} className="req-card">
-              <div className="req-card-main">
-                <div
-                  className="avatar avatar-sm"
-                  style={{ background: avatarColor(otherId), flexShrink: 0 }}
-                >
-                  {name?.[0]?.toUpperCase() ?? '?'}
-                </div>
-                <div className="req-card-info">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                    <span className="req-card-name">{name}</span>
-                    <Stars value={r.rating} />
-                    <span style={{ fontSize: '12px', color: 'var(--muted)', marginLeft: 'auto' }}>
-                      {fmt(r.createdAt)}
-                    </span>
-                  </div>
-                  <div className="req-card-role">
-                    {tab === 'received' ? 'reviewed you' : `you reviewed`}
-                  </div>
-                  {r.comment && (
-                    <div className="req-card-msg" style={{ marginTop: '8px' }}>
-                      "{r.comment}"
+        {!loading && shown.length > 0 && (
+          <div style={{ paddingTop: 12 }}>
+            {shown.map((r) => {
+              const otherId = tab === 'received' ? r.reviewerId : r.revieweeId
+              const other   = partnerById(otherId)
+              const name    = partnerName(otherId)
+              return (
+                <div key={r.id} className="req-card">
+                  <div className="req-card-main">
+                    <Link to={`/users/${otherId}`} style={{ flexShrink: 0, display: 'block' }}>
+                      <div
+                        className="avatar avatar-sm"
+                        style={{ background: other?.avatarUrl ? undefined : avatarColor(other?.firstName || otherId) }}
+                      >
+                        {other?.avatarUrl
+                          ? <img src={other.avatarUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                          : name?.[0]?.toUpperCase() ?? '?'
+                        }
+                      </div>
+                    </Link>
+                    <div className="req-card-info">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                        <Link to={`/users/${otherId}`} className="req-card-name" style={{ color: 'var(--primary)' }}>{name}</Link>
+                        <Stars value={r.rating} />
+                        <span style={{ fontSize: '12px', color: 'var(--muted)', marginLeft: 'auto' }}>
+                          {fmt(r.createdAt)}
+                        </span>
+                      </div>
+                      <div className="req-card-role">
+                        {tab === 'received' ? 'reviewed you' : 'you reviewed'}
+                      </div>
+                      {r.comment && (
+                        <div className="req-card-msg" style={{ marginTop: '8px' }}>
+                          "{r.comment}"
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
-              </div>
-            </div>
-          )
-        })}
+              )
+            })}
+          </div>
+        )}
+
       </div>
     </div>
   )

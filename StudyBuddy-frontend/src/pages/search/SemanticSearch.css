@@ -1,0 +1,160 @@
+/* ══════════════════════════════
+   AI / SEMANTIC SEARCH PAGE
+══════════════════════════════ */
+
+.find-page > .card { overflow: hidden; }
+
+/* ── Hero header ── */
+.ai-hero {
+  padding: clamp(28px, 5vw, 44px) clamp(20px, 4vw, 32px) clamp(24px, 4vw, 36px);
+  text-align: center;
+  background: linear-gradient(160deg, var(--blue-50) 0%, var(--card) 65%);
+  border-bottom: 1px solid var(--border);
+}
+.ai-hero-icon {
+  width: 58px; height: 58px;
+  background: linear-gradient(135deg, var(--primary) 0%, #6366f1 100%);
+  border-radius: 16px;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 16px;
+  box-shadow: 0 6px 20px rgba(37,99,235,.28);
+  color: #fff;
+}
+.ai-hero-title {
+  font-size: clamp(18px, 3.5vw, 24px); font-weight: 800;
+  color: var(--text); letter-spacing: -0.4px; margin-bottom: 8px;
+}
+.ai-hero-sub {
+  font-size: 14px; color: var(--muted);
+  max-width: 420px; margin: 0 auto; line-height: 1.65;
+}
+
+/* ── Search form ── */
+.sem-search-form {
+  padding: clamp(16px, 3vw, 24px) clamp(16px, 3vw, 24px) 16px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.sem-search-input {
+  width: 100%; padding: 12px 14px;
+  border: 1.5px solid var(--border); border-radius: 10px;
+  font-size: 14px; line-height: 1.6; resize: vertical;
+  outline: none; background: var(--bg); color: var(--text);
+  font-family: inherit; min-height: 80px;
+  transition: border-color .15s, box-shadow .15s, background .15s;
+}
+.sem-search-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37,99,235,.1);
+  background: var(--card);
+}
+.sem-search-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.sem-search-hint { font-size: 12px; color: var(--muted-lt); }
+
+/* ── AI submit button ── */
+.btn-ai {
+  background: linear-gradient(135deg, var(--primary) 0%, #6366f1 100%);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(37,99,235,.25);
+  transition: box-shadow .15s, transform .15s, opacity .15s;
+}
+.btn-ai:hover:not(:disabled) {
+  box-shadow: 0 4px 16px rgba(37,99,235,.38);
+  transform: translateY(-1px);
+}
+.btn-ai:disabled { opacity: .55; cursor: not-allowed; }
+
+/* ── Error state ── */
+.ai-error-box {
+  margin: 0 clamp(16px, 3vw, 24px) 16px;
+  padding: 14px 16px;
+  background: rgba(220,38,38,.07);
+  border: 1px solid rgba(220,38,38,.22);
+  border-radius: 10px;
+  font-size: 14px; color: var(--danger);
+}
+.ai-error-hint { margin-top: 6px; font-size: 13px; opacity: .8; }
+
+/* ── Empty state ── */
+.sem-search-empty {
+  padding: clamp(40px, 7vw, 64px) 20px;
+  text-align: center;
+}
+.sem-search-empty-icon {
+  width: 64px; height: 64px;
+  background: linear-gradient(135deg, var(--blue-50) 0%, #e0e7ff 100%);
+  border-radius: 18px;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 18px;
+  color: var(--primary);
+}
+.sem-search-empty-title { font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+.sem-search-empty-sub   { font-size: 13px; color: var(--muted); max-width: 380px; margin: 0 auto; line-height: 1.6; }
+
+/* ── Results count ── */
+.ai-results-count {
+  padding: 12px clamp(16px, 3vw, 24px) 4px;
+  font-size: 12px; color: var(--muted); font-weight: 500; letter-spacing: .3px;
+}
+.ai-results-count-num { font-size: 14px; font-weight: 800; color: var(--text); }
+
+/* ── Results list ── */
+.ai-results-list {
+  padding: 4px clamp(12px, 3vw, 16px) clamp(12px, 3vw, 16px);
+  display: flex; flex-direction: column; gap: 8px;
+}
+
+/* ── Result card ── */
+@keyframes aiCardIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.ai-result-card {
+  display: flex; gap: clamp(10px, 2vw, 14px);
+  padding: clamp(12px, 2vw, 16px);
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  transition: box-shadow .15s ease, transform .15s ease;
+  animation: aiCardIn .22s ease both;
+}
+.ai-result-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,.08);
+  transform: translateY(-2px);
+}
+.ai-result-body { flex: 1; min-width: 0; }
+.ai-result-top  { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+
+/* ── Avatar & name links ── */
+.cand-avatar-link { display: block; flex-shrink: 0; }
+.cand-avatar-link .avatar { transition: opacity .15s; }
+.cand-avatar-link:hover .avatar { opacity: .85; }
+.cand-name-link {
+  display: block; font-size: 15px; font-weight: 700;
+  color: var(--text); transition: color .15s;
+}
+.cand-name-link:hover { color: var(--primary); }
+
+/* ── Match badge (filled) ── */
+.ai-match-badge {
+  flex-shrink: 0; width: 52px; height: 52px; border-radius: 50%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1;
+}
+.ai-match-badge.match-high { background: rgba(22,163,74,.12);   color: var(--green); }
+.ai-match-badge.match-mid  { background: rgba(217,119,6,.12);   color: var(--amber); }
+.ai-match-badge.match-low  { background: rgba(148,163,184,.15); color: var(--muted); }
+.ai-match-pct   { font-size: 13px; font-weight: 800; }
+.ai-match-label { font-size: 8px; font-weight: 700; letter-spacing: .4px; margin-top: 1px; }
+
+/* ── Loading spinner ── */
+@keyframes spin { to { transform: rotate(360deg); } }
+.sem-spinner {
+  display: inline-block; width: 14px; height: 14px;
+  border: 2px solid rgba(255,255,255,.4);
+  border-top-color: #fff; border-radius: 50%;
+  animation: spin .6s linear infinite;
+  margin-right: 6px;
+}
+
+@media (max-width: 480px) {
+  .ai-result-card { padding: 12px; gap: 10px; }
+  .ai-hero { padding: 24px 16px 20px; }
+}

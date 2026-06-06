@@ -17,7 +17,7 @@ type PgProfileClient struct {
 	pool *pgxpool.Pool
 }
 
-func NewPgProfileClient(pool *pgxpool.Pool) usecase.ProfileClient {
+func NewPgProfileClient(pool *pgxpool.Pool) *PgProfileClient {
 	return &PgProfileClient{pool: pool}
 }
 
@@ -70,6 +70,21 @@ ORDER BY i.name;
 		names = append(names, n)
 	}
 	return names, rows.Err()
+}
+
+func (c *PgProfileClient) IsAdmin(ctx context.Context, userID string) (bool, error) {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	var role string
+	err := c.pool.QueryRow(ctx, `SELECT role FROM users WHERE id = $1`, userID).Scan(&role)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, nil
+		}
+		return false, fmt.Errorf("get user role: %w", err)
+	}
+	return role == "admin", nil
 }
 
 func (c *PgProfileClient) GetInterestIDs(ctx context.Context, userID string) ([]string, error) {

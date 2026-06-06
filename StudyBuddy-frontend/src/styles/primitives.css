@@ -1,0 +1,82 @@
+/* ── Card ── */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  transition: background-color .2s, border-color .2s;
+}
+
+/* ── Avatar ── */
+.avatar {
+  border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; color: #fff; overflow: hidden;
+}
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-xs  { width: 30px;  height: 30px;  font-size: 11px; }
+.avatar-36  { width: 36px;  height: 36px;  font-size: 14px; }
+.avatar-sm  { width: 44px;  height: 44px;  font-size: 16px; }
+.avatar-md  { width: 52px;  height: 52px;  font-size: 20px; }
+.avatar-lg  { width: 68px;  height: 68px;  font-size: 26px; }
+.avatar-xl  { width: 80px;  height: 80px;  font-size: 28px; }
+
+/* ── Buttons — min 44px touch target on mobile ── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  padding: 10px 18px; border-radius: 8px;
+  font-size: 14px; font-weight: 600; line-height: 1;
+  transition: background .15s, color .15s; cursor: pointer;
+  text-decoration: none; border: none;
+  min-height: 44px;
+  white-space: nowrap;
+}
+.btn-primary   { background: var(--primary); color: #fff; }
+.btn-primary:hover:not(:disabled)   { background: var(--primary-h); }
+.btn-secondary { background: var(--card); color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover { background: var(--bg); }
+.btn-danger    { background: var(--danger); color: #fff; }
+.btn-danger:hover:not(:disabled)    { background: #b91c1c; }
+.btn-ghost     { background: transparent; color: var(--muted); }
+.btn-ghost:hover { background: var(--bg); color: var(--text); }
+.btn-sm  { padding: 7px 14px; font-size: 13px; min-height: 36px; }
+.btn:disabled { opacity: .55; cursor: not-allowed; }
+
+@media (max-width: 375px) {
+  .req-card-actions .btn,
+  .cand-actions .btn,
+  .rec-actions .btn { flex: 1; }
+}
+
+/* ── Match badge ── */
+.match-badge {
+  width: 56px; height: 56px; border-radius: 50%; border: 3px solid;
+  flex-shrink: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; line-height: 1;
+}
+.match-pct   { font-size: 14px; font-weight: 800; }
+.match-label { font-size: 9px; font-weight: 700; letter-spacing: .4px; margin-top: 1px; }
+.match-green { border-color: var(--green); color: var(--green); }
+.match-amber { border-color: var(--amber); color: var(--amber); }
+.match-gray  { border-color: var(--muted-lt); color: var(--muted-lt); }
+
+/* ── Chips ── */
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px; border-radius: 6px;
+  font-size: 12px; font-weight: 500; white-space: nowrap;
+}
+.chip-time   { background: #f0f9ff; color: #0369a1; }
+.chip-course { background: #f0fdf4; color: #15803d; }
+.chip-int    { background: var(--blue-50); color: var(--primary); }
+.chips-row   { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+
+/* ── Progress bar ── */
+.prog-wrap { height: 4px; background: var(--border); border-radius: 4px; margin-top: 5px; }
+.prog-fill { height: 100%; border-radius: 4px; background: var(--primary); }
+
+/* ── Tabs ── */
+.tabs {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 12px var(--page-px) 0;
+}

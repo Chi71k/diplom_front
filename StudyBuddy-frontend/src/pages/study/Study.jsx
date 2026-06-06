@@ -46,7 +46,6 @@ export default function Study() {
 
   return (
     <div style={{ maxWidth: 860, margin: '0 auto' }}>
-      {/* Tab bar */}
       <div className="page-tab-bar">
         {TABS.map(({ key, label, icon }) => (
           <button
@@ -61,7 +60,6 @@ export default function Study() {
         ))}
       </div>
 
-      {/* Content */}
       {tab === 'groups'   && <Groups />}
       {tab === 'sessions' && <Sessions />}
       {tab === 'schedule' && <Availability />}

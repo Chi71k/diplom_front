@@ -12,6 +12,7 @@ var ErrUserNotFound = errors.New("user not found")
 type AdminUserFilter struct {
 	Role     *string
 	IsActive *bool
+	Search   *string
 }
 
 // UserSummary is a row returned by admin user listing.

@@ -1,14 +1,14 @@
 const PALETTE = [
-  '#3b82f6', // blue
-  '#8b5cf6', // violet
-  '#10b981', // emerald
-  '#f59e0b', // amber
-  '#ef4444', // red
-  '#ec4899', // pink
-  '#14b8a6', // teal
-  '#6366f1', // indigo
-  '#f97316', // orange
-  '#06b6d4', // cyan
+  '#3b82f6',
+  '#8b5cf6',
+  '#10b981',
+  '#f59e0b',
+  '#ef4444',
+  '#ec4899',
+  '#14b8a6',
+  '#6366f1',
+  '#f97316',
+  '#06b6d4',
 ]
 
 export function avatarColor(str = '') {

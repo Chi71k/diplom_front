@@ -76,12 +76,14 @@ func (r *PostgresPointsRepository) ListLeaderboard(ctx context.Context, limit in
 		limit = 500
 	}
 	const q = `
-SELECT user_id, total_points, rank FROM (
+SELECT lp.user_id, lp.total_points, lp.rank FROM (
   SELECT user_id::text, total_points::bigint,
          ROW_NUMBER() OVER (ORDER BY total_points DESC)::int AS rank
   FROM leaderboard_points
-) x
-ORDER BY total_points DESC
+) lp
+JOIN users u ON u.id = lp.user_id::uuid
+WHERE u.role != 'admin'
+ORDER BY lp.total_points DESC
 LIMIT $1
 `
 	rows, err := r.pool.Query(ctx, q, limit)
@@ -102,10 +104,12 @@ LIMIT $1
 
 func (r *PostgresPointsRepository) ListAllLeaderboardTotals(ctx context.Context) ([]domain.LeaderboardEntry, error) {
 	const q = `
-SELECT user_id::text, total_points::bigint,
-       ROW_NUMBER() OVER (ORDER BY total_points DESC)::int AS rank
-FROM leaderboard_points
-ORDER BY total_points DESC
+SELECT lp.user_id::text, lp.total_points::bigint,
+       ROW_NUMBER() OVER (ORDER BY lp.total_points DESC)::int AS rank
+FROM leaderboard_points lp
+JOIN users u ON u.id = lp.user_id::uuid
+WHERE u.role != 'admin'
+ORDER BY lp.total_points DESC
 `
 	rows, err := r.pool.Query(ctx, q)
 	if err != nil {
@@ -128,6 +132,46 @@ func (r *PostgresPointsRepository) MaxLeaderboardPoints(ctx context.Context) (in
 	var m int64
 	err := r.pool.QueryRow(ctx, q).Scan(&m)
 	return m, err
+}
+
+func (r *PostgresPointsRepository) SearchLeaderboardByName(ctx context.Context, query string, limit int) ([]domain.LeaderboardEntry, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	const q = `
+SELECT lp.user_id, lp.total_points, lp.rank FROM (
+  SELECT user_id::text, total_points::bigint,
+         ROW_NUMBER() OVER (ORDER BY total_points DESC)::int AS rank
+  FROM leaderboard_points
+) lp
+JOIN users u ON u.id = lp.user_id::uuid
+WHERE u.is_active = true
+  AND u.role != 'admin'
+  AND (
+    u.first_name ILIKE '%' || $1 || '%'
+    OR u.last_name ILIKE '%' || $1 || '%'
+    OR CONCAT(u.first_name, ' ', u.last_name) ILIKE '%' || $1 || '%'
+  )
+ORDER BY lp.total_points DESC
+LIMIT $2
+`
+	rows, err := r.pool.Query(ctx, q, query, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []domain.LeaderboardEntry
+	for rows.Next() {
+		var row domain.LeaderboardEntry
+		if err := rows.Scan(&row.UserID, &row.TotalPoints, &row.Rank); err != nil {
+			return nil, err
+		}
+		out = append(out, row)
+	}
+	return out, rows.Err()
 }
 
 func (r *PostgresPointsRepository) Ping(ctx context.Context) error {

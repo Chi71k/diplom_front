@@ -10,7 +10,6 @@ import (
 	"github.com/joho/godotenv"
 
 	"studybuddy/backend/pkg/db"
-	"studybuddy/backend/pkg/embedding"
 	"studybuddy/backend/services/groups/delivery"
 	"studybuddy/backend/services/groups/repository"
 	"studybuddy/backend/services/groups/usecase"
@@ -21,7 +20,6 @@ func main() {
 
 	port := getEnv("GROUPS_SERVER_PORT", "8085")
 	jwtSecret := getEnv("JWT_SECRET", "dev-secret-change-in-production")
-	geminiKey := getEnv("GEMINI_API_KEY", "")
 	pointsURL := getEnv("POINTS_SERVICE_URL", "")
 	dsn := getEnv("DATABASE_URL", "postgres://studybuddy:studybuddy@localhost:5432/studybuddy?sslmode=disable")
 
@@ -35,9 +33,6 @@ func main() {
 	defer pool.Close()
 
 	groupRepo := repository.NewPgGroupRepository(pool)
-	embCache := embedding.NewPgCache(pool)
-	geminiClient := embedding.NewClient(geminiKey)
-	embedProv := repository.NewEmbeddingProvider(geminiClient, embCache, pool)
 
 	createUC := usecase.NewCreateGroup(groupRepo)
 	getUC := usecase.NewGetGroup(groupRepo)
@@ -46,7 +41,7 @@ func main() {
 	removeUC := usecase.NewRemoveMember(groupRepo)
 	deleteUC := usecase.NewDeleteGroup(groupRepo)
 	updateUC := usecase.NewUpdateGroup(groupRepo)
-	suggestUC := usecase.NewSuggestMembersForGroup(groupRepo, embedProv, geminiClient)
+	suggestUC := usecase.NewSuggestMembersForGroup(groupRepo)
 
 	handler := &delivery.GroupsHandler{
 		Create:   createUC,

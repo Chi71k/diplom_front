@@ -4,9 +4,7 @@ import (
 	"context"
 	"math"
 	"sort"
-	"strings"
 
-	"studybuddy/backend/pkg/embedding"
 	"studybuddy/backend/services/groups/domain"
 )
 
@@ -28,27 +26,11 @@ type SuggestMembersForGroup interface {
 }
 
 type suggestMembersForGroup struct {
-	repo   GroupRepository
-	embed  EmbeddingProvider
-	gemini *embedding.Client
+	repo GroupRepository
 }
 
-func NewSuggestMembersForGroup(repo GroupRepository, ep EmbeddingProvider, gemini *embedding.Client) SuggestMembersForGroup {
-	return &suggestMembersForGroup{repo: repo, embed: ep, gemini: gemini}
-}
-
-func buildGroupProfileText(name, description string, courseTitles, interestNames []string) string {
-	var b strings.Builder
-	b.WriteString("Group: ")
-	b.WriteString(strings.TrimSpace(name))
-	b.WriteString(". Description: ")
-	b.WriteString(strings.TrimSpace(description))
-	b.WriteString(". Courses: ")
-	b.WriteString(strings.Join(courseTitles, ", "))
-	b.WriteString(". Current members interests: ")
-	b.WriteString(strings.Join(interestNames, ", "))
-	b.WriteString(".")
-	return b.String()
+func NewSuggestMembersForGroup(repo GroupRepository) SuggestMembersForGroup {
+	return &suggestMembersForGroup{repo: repo}
 }
 
 func (uc *suggestMembersForGroup) SuggestMembersForGroup(ctx context.Context, in SuggestMembersForGroupInput) ([]MemberSuggestion, error) {
@@ -69,76 +51,11 @@ func (uc *suggestMembersForGroup) SuggestMembersForGroup(ctx context.Context, in
 	if err != nil {
 		return nil, err
 	}
-	interests, err := uc.repo.ListDistinctInterestNamesForGroup(ctx, in.GroupID)
-	if err != nil {
-		return nil, err
-	}
 
-	text := buildGroupProfileText(g.Name, g.Description, titles, interests)
-	groupVec, err := uc.gemini.Embed(ctx, text)
-	if err != nil || groupVec == nil || len(groupVec) == 0 {
-		return uc.fallbackOverlap(ctx, in.GroupID, limit, titles)
-	}
-
-	candidates, err := uc.repo.ListCandidateUserIDs(ctx, in.GroupID, 200)
-	if err != nil {
-		return nil, err
-	}
-
-	type scored struct {
-		id    string
-		score float64
-	}
-	var rows []scored
-	for _, uid := range candidates {
-		cv, err := uc.embed.GetOrCompute(ctx, uid)
-		if err != nil {
-			continue
-		}
-		if cv == nil || len(cv) != len(groupVec) {
-			continue
-		}
-		s := embedding.CosineSimilarity(groupVec, cv)
-		rows = append(rows, scored{id: uid, score: s})
-	}
-
-	if len(rows) == 0 {
-		return uc.fallbackOverlap(ctx, in.GroupID, limit, titles)
-	}
-
-	sort.Slice(rows, func(i, j int) bool { return rows[i].score > rows[j].score })
-	if len(rows) > limit {
-		rows = rows[:limit]
-	}
-
-	ids := make([]string, len(rows))
-	for i := range rows {
-		ids[i] = rows[i].id
-	}
-	profiles, err := uc.repo.ListProfiles(ctx, ids)
-	if err != nil {
-		return nil, err
-	}
-	byID := make(map[string]ProfileSnippet, len(profiles))
-	for _, p := range profiles {
-		byID[p.UserID] = p
-	}
-
-	out := make([]MemberSuggestion, 0, len(rows))
-	for _, r := range rows {
-		p := byID[r.id]
-		out = append(out, MemberSuggestion{
-			UserID:          r.id,
-			FirstName:       p.FirstName,
-			LastName:        p.LastName,
-			AvatarURL:       p.AvatarURL,
-			SimilarityScore: r.score,
-		})
-	}
-	return out, nil
+	return uc.suggestByCourseOverlap(ctx, in.GroupID, limit, titles)
 }
 
-func (uc *suggestMembersForGroup) fallbackOverlap(ctx context.Context, groupID string, limit int, groupCourseTitles []string) ([]MemberSuggestion, error) {
+func (uc *suggestMembersForGroup) suggestByCourseOverlap(ctx context.Context, groupID string, limit int, groupCourseTitles []string) ([]MemberSuggestion, error) {
 	overlaps, err := uc.repo.ListCourseOverlapCandidates(ctx, groupID, max(200, limit))
 	if err != nil {
 		return nil, err

@@ -389,6 +389,15 @@ export async function apiCancelSession(id) {
   return handleResponse(res)
 }
 
+export async function apiGetSession(id) {
+  const res = await apiFetch(`${API_BASE}/api/v1/sessions/${id}`, {
+    method: 'GET',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  return handleResponse(res)
+}
+
 // --- Groups ---
 export async function apiListMyGroups() {
   const res = await apiFetch(`${API_BASE}/api/v1/groups`, {
@@ -475,6 +484,14 @@ export async function apiGetGroupSuggestions(groupId, limit = 10) {
 }
 
 // --- Points ---
+export async function apiGetUserPoints(userId) {
+  const res = await apiFetch(`${API_BASE}/api/v1/users/${userId}/points`, {
+    method: 'GET',
+    credentials: 'include',
+  })
+  return handleResponse(res)
+}
+
 export async function apiGetMyPoints() {
   const res = await apiFetch(`${API_BASE}/api/v1/points/me`, {
     method: 'GET',
@@ -508,19 +525,6 @@ export async function apiGetReputationLeaderboard(limit = 20) {
   return handleResponse(res)
 }
 
-export async function apiSearchLeaderboard(q, limit = 10) {
-  const params = new URLSearchParams({ q, limit })
-  const res = await apiFetch(
-    `${API_BASE}/api/v1/points/leaderboard/search?${params}`,
-    {
-      method: 'GET',
-      headers: authHeaders(),
-      credentials: 'include',
-    }
-  )
-  return handleResponse(res)
-}
-
 // --- Reviews ---
 export async function apiCreateReview(body) {
   const res = await apiFetch(`${API_BASE}/api/v1/reviews`, {
@@ -528,6 +532,15 @@ export async function apiCreateReview(body) {
     headers: authHeaders(),
     credentials: 'include',
     body: JSON.stringify(body),
+  })
+  return handleResponse(res)
+}
+
+export async function apiListMyReviews() {
+  const res = await apiFetch(`${API_BASE}/api/v1/reviews/me`, {
+    method: 'GET',
+    headers: authHeaders(),
+    credentials: 'include',
   })
   return handleResponse(res)
 }
@@ -548,6 +561,16 @@ export async function apiGetUserRating(userId) {
   const res = await fetch(
     `${API_BASE}/api/v1/reviews/users/${userId}/rating`
   )
+  return handleResponse(res)
+}
+
+export async function apiSearchStudents(q, limit = 20) {
+  const params = new URLSearchParams({ q, limit })
+  const res = await apiFetch(`${API_BASE}/api/v1/users/search?${params}`, {
+    method: 'GET',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
   return handleResponse(res)
 }
 

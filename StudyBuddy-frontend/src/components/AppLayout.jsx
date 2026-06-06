@@ -1,7 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
+import { useTheme } from '../context/ThemeContext'
 
-/* ── Desktop top nav — 7 items ── */
 const desktopNav = [
   {
     to: '/dashboard', label: 'Home',
@@ -14,6 +14,10 @@ const desktopNav = [
   {
     to: '/match', label: 'Match',
     icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>,
+  },
+  {
+    to: '/search', label: 'AI Search',
+    icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>,
   },
   {
     to: '/study', label: 'Study',
@@ -38,7 +42,6 @@ const adminNavItem = {
   icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"/><path d="m9 12 2 2 4-4"/></svg>,
 }
 
-/* ── Mobile bottom nav — 5 items ── */
 const mobileNav = [
   {
     to: '/dashboard', label: 'Home',
@@ -47,6 +50,10 @@ const mobileNav = [
   {
     to: '/match', label: 'Match',
     icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>,
+  },
+  {
+    to: '/search', label: 'Search',
+    icon: <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>,
   },
   {
     to: '/study', label: 'Study',
@@ -64,6 +71,7 @@ const mobileNav = [
 
 export default function AppLayout({ onLogout }) {
   const { profile, isAdmin } = useAuth()
+  const { theme, toggleTheme } = useTheme()
   const initial = (profile?.firstName?.[0] || profile?.email?.[0] || '?').toUpperCase()
 
   const topItems = isAdmin ? [...desktopNav, adminNavItem] : desktopNav
@@ -74,7 +82,6 @@ export default function AppLayout({ onLogout }) {
 
   return (
     <>
-      {/* ── Top navbar ── */}
       <nav className="navbar">
         <NavLink to="/dashboard" className="nav-logo" style={{ textDecoration: 'none' }}>
           <div className="nav-logo-icon">SB</div>
@@ -97,6 +104,20 @@ export default function AppLayout({ onLogout }) {
         <button
           type="button"
           className="nav-logout"
+          onClick={toggleTheme}
+          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          style={{ marginRight: '4px' }}
+        >
+          {theme === 'dark'
+            ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+            : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+          }
+          <span className="nav-label">{theme === 'dark' ? 'Light' : 'Dark'}</span>
+        </button>
+
+        <button
+          type="button"
+          className="nav-logout"
           onClick={() => onLogout?.()}
           title="Log out"
         >
@@ -109,7 +130,6 @@ export default function AppLayout({ onLogout }) {
         </button>
       </nav>
 
-      {/* ── Bottom tab bar (mobile only) ── */}
       <nav className="bottom-nav">
         {mobileNav.map(({ to, label, icon }) => (
           <NavLink

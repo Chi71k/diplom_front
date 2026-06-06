@@ -73,14 +73,14 @@ type CandidateStore interface {
 	ListCandidateIDs(ctx context.Context, requesterID string, excludeIDs []string) ([]string, error)
 }
 
-// EmbeddingStore loads precomputed embedding vectors from persistent storage.
-type EmbeddingStore interface {
-	GetEmbeddings(ctx context.Context, userIDs []string) (map[string][]float32, error)
-}
-
 // ReputationClient returns a normalized reputation score in [0, 1] for a user (e.g. average rating).
 type ReputationClient interface {
 	GetAverageRating(ctx context.Context, userID string) float64
+}
+
+// UserRoleChecker checks whether a user has a specific role.
+type UserRoleChecker interface {
+	IsAdmin(ctx context.Context, userID string) (bool, error)
 }
 
 // FriendshipRepository tracks mutual connections between users.

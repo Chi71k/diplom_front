@@ -94,7 +94,6 @@ const GroupForm = ({ edit }) => {
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-          {/* Name */}
           <div>
             <label style={labelStyle}>Group name *</label>
             <input
@@ -106,7 +105,6 @@ const GroupForm = ({ edit }) => {
             />
           </div>
 
-          {/* Description */}
           <div>
             <label style={labelStyle}>
               Description
@@ -121,7 +119,6 @@ const GroupForm = ({ edit }) => {
             />
           </div>
 
-          {/* Courses — multi-select from list */}
           <div>
             <label style={labelStyle}>
               Courses
@@ -187,7 +184,6 @@ const GroupForm = ({ edit }) => {
             )}
           </div>
 
-          {/* Actions */}
           <div style={{ display: 'flex', gap: '10px', paddingTop: '4px' }}>
             <button type="submit" className="btn btn-primary" disabled={saving}>
               {saving ? 'Saving…' : edit ? 'Save changes' : 'Create group'}

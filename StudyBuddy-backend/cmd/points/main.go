@@ -11,7 +11,6 @@ import (
 	"github.com/joho/godotenv"
 
 	"studybuddy/backend/pkg/db"
-	"studybuddy/backend/pkg/embedding"
 	"studybuddy/backend/services/points/delivery"
 	"studybuddy/backend/services/points/repository"
 	"studybuddy/backend/services/points/usecase"
@@ -22,7 +21,6 @@ func main() {
 
 	port := getEnv("POINTS_SERVER_PORT", "8087")
 	jwtSecret := getEnv("JWT_SECRET", "dev-secret-change-in-production")
-	geminiKey := getEnv("GEMINI_API_KEY", "")
 	reviewsURL := strings.TrimSpace(os.Getenv("REVIEWS_SERVICE_URL"))
 	dsn := getEnv("DATABASE_URL", "postgres://studybuddy:studybuddy@localhost:5432/studybuddy?sslmode=disable")
 
@@ -36,9 +34,6 @@ func main() {
 	defer pool.Close()
 
 	pointsRepo := repository.NewPostgresPointsRepository(pool)
-	embCache := embedding.NewPgCache(pool)
-	gemini := embedding.NewClient(geminiKey)
-	embedProv := repository.NewEmbeddingProvider(gemini, embCache, pool)
 
 	var reviewReader usecase.ReviewRatingReader = repository.NoopReviewsRating{}
 	if reviewsURL != "" {
@@ -49,7 +44,7 @@ func main() {
 	getMineUC := usecase.NewGetMyPoints(pointsRepo)
 	getBoardUC := usecase.NewGetLeaderboard(pointsRepo)
 	getRepUC := usecase.NewGetReputationLeaderboard(pointsRepo, reviewReader)
-	searchUC := usecase.NewSearchLeaderboard(pointsRepo, gemini, embedProv, getBoardUC)
+	searchUC := usecase.NewSearchLeaderboard(pointsRepo, getBoardUC)
 	publicUC := usecase.NewGetUserPointsTotal(pointsRepo)
 
 	h := &delivery.PointsHandler{

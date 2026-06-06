@@ -24,7 +24,7 @@ type GroupRepository interface {
 	ListProfiles(ctx context.Context, userIDs []string) ([]ProfileSnippet, error)
 }
 
-// OverlapCandidate is used when semantic embeddings are unavailable.
+// OverlapCandidate ranks users by shared course count with a group.
 type OverlapCandidate struct {
 	UserID       string
 	OverlapCount int
@@ -36,9 +36,4 @@ type ProfileSnippet struct {
 	FirstName string
 	LastName  string
 	AvatarURL string
-}
-
-// EmbeddingProvider loads user embedding vectors.
-type EmbeddingProvider interface {
-	GetOrCompute(ctx context.Context, userID string) ([]float64, error)
 }

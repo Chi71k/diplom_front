@@ -34,6 +34,53 @@
   :root { --nav-h: 60px; }
 }
 
+/* ══════════════════════════════
+   DARK THEME
+══════════════════════════════ */
+[data-theme="dark"] {
+  --primary:    #60a5fa;
+  --primary-h:  #3b82f6;
+  --danger:     #f87171;
+  --bg:         #0f172a;
+  --card:       #1e293b;
+  --border:     #334155;
+  --text:       #f1f5f9;
+  --muted:      #94a3b8;
+  --muted-lt:   #475569;
+  --green:      #4ade80;
+  --amber:      #fbbf24;
+  --blue-50:    #1e3a5f;
+  --shadow:     0 1px 4px rgba(0,0,0,.4);
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] textarea,
+[data-theme="dark"] select {
+  background: #1e293b !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+  color-scheme: dark;
+}
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: var(--muted-lt);
+}
+[data-theme="dark"] .btn-secondary {
+  background: #273549;
+  border-color: var(--border);
+  color: var(--text);
+}
+[data-theme="dark"] .btn-secondary:hover { background: #334155; }
+[data-theme="dark"] .btn-ghost:hover     { background: #273549; }
+
+/* score hero card in Points */
+[data-theme="dark"] .points-hero {
+  background: linear-gradient(135deg, #1e3a5f 0%, #1e3a8a 100%) !important;
+  border-color: #2563eb !important;
+}
+/* chip-int */
+[data-theme="dark"] .chip-int { background: #1e3a5f; }
+
 /* ── Reset ── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { -webkit-text-size-adjust: 100%; }
@@ -44,6 +91,10 @@ body {
   line-height: 1.5;
   overflow-x: hidden; /* prevent horizontal scroll on all devices */
   -webkit-font-smoothing: antialiased;
+  transition: background-color 0.25s, color 0.25s;
+}
+.card, .navbar, .bottom-nav, .nav-link, .btn, .chip, .avatar {
+  transition: background-color 0.25s, border-color 0.25s, color 0.25s;
 }
 a    { text-decoration: none; color: inherit; }
 img  { max-width: 100%; height: auto; display: block; }

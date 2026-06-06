@@ -42,7 +42,6 @@ export default function AdminStats() {
     <div className="requests-page">
       <div className="card">
 
-        {/* Header */}
         <div className="requests-head">
           <div>
             <div className="requests-title">Platform Statistics</div>
@@ -59,7 +58,6 @@ export default function AdminStats() {
         {!loading && stats && (
           <div style={{ padding: '8px 20px 24px' }}>
 
-            {/* Users block */}
             <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>
               Users
             </div>
@@ -69,7 +67,6 @@ export default function AdminStats() {
               <StatCard label="Inactive users" value={stats.inactiveUsers ?? ((stats.totalUsers ?? 0) - (stats.activeUsers ?? 0))} color="#dc2626" />
             </div>
 
-            {/* Activity block */}
             <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>
               Activity
             </div>
@@ -81,7 +78,6 @@ export default function AdminStats() {
               {stats.totalReviews   !== undefined && <StatCard label="Reviews"   value={stats.totalReviews}   color="#be185d" />}
             </div>
 
-            {/* Raw dump for any extra fields */}
             {Object.keys(stats).some((k) => ![
               'totalUsers', 'activeUsers', 'inactiveUsers',
               'totalMatches', 'totalSessions', 'totalGroups', 'totalCourses', 'totalReviews',
