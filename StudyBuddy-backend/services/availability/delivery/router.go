@@ -25,6 +25,7 @@ func NewRouter(h *AvailabilityHandler, jwtSecret []byte) http.Handler {
 
 		r.Get("/api/v1/availability/gcal/connect", h.HandleGCalConnect)
 		r.Post("/api/v1/availability/gcal/import", h.HandleGCalImport)
+		r.Post("/api/v1/availability/gcal/export-slots", h.HandleGCalExportSlots)
 		r.Delete("/api/v1/availability/gcal/disconnect", h.HandleGCalDisconnect)
 
 		r.Post("/api/v1/sessions", h.HandleProposeSession)

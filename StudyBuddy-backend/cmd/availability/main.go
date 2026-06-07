@@ -73,6 +73,7 @@ func main() {
 	deleteSlotUC := usecase.NewDeleteSlot(slotRepo)
 	gcalConnectUC := usecase.NewGCalConnect(gcalProvider, gcalRepo, stateKey)
 	gcalImportUC := usecase.NewGCalImport(gcalProvider, gcalRepo, slotRepo)
+	gcalExportSlotsUC := usecase.NewGCalExportSlots(gcalProvider, gcalRepo, slotRepo)
 	gcalDisconnectUC := usecase.NewGCalDisconnect(gcalRepo, slotRepo)
 	proposeSessionUC := usecase.NewProposeSession(sessionRepo, gcalProvider, gcalRepo)
 	confirmSessionUC := usecase.NewConfirmSession(sessionRepo, gcalProvider, gcalRepo, pointsServiceURL, []byte(jwtSecret))
@@ -88,6 +89,7 @@ func main() {
 		DeleteSlot:          deleteSlotUC,
 		GCalConnect:         gcalConnectUC,
 		GCalImport:          gcalImportUC,
+		GCalExportSlots:     gcalExportSlotsUC,
 		GCalDisconnect:      gcalDisconnectUC,
 		ProposeSession:      proposeSessionUC,
 		ConfirmSession:      confirmSessionUC,

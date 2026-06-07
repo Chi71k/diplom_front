@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useToast } from '../../context/ToastContext'
 import {
   apiGetSlots, apiCreateSlot, apiDeleteSlot,
-  apiGetGCalConnectUrl, apiImportGCal,
+  apiGetGCalConnectUrl, apiImportGCal, apiExportSlotsToGCal,
 } from '../../api'
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
@@ -14,6 +14,7 @@ const Availability = () => {
   const [adding, setAdding] = useState(false)
   const [gcalConnecting, setGcalConnecting] = useState(false)
   const [gcalImporting, setGcalImporting] = useState(false)
+  const [gcalExporting, setGcalExporting] = useState(false)
   const gcalMsgHandlerRef = useRef(null)
   const [form, setForm] = useState({
     dayOfWeek: 1,
@@ -109,6 +110,18 @@ const Availability = () => {
       toast.error(e.error || 'Failed to import from Google Calendar')
     } finally {
       setGcalImporting(false)
+    }
+  }
+
+  const handleGCalExport = async () => {
+    setGcalExporting(true)
+    try {
+      const data = await apiExportSlotsToGCal()
+      toast.success(`Exported ${data.exported} slot${data.exported !== 1 ? 's' : ''} to Google Calendar`)
+    } catch (e) {
+      toast.error(e.error || 'Failed to export to Google Calendar')
+    } finally {
+      setGcalExporting(false)
     }
   }
 
@@ -232,6 +245,14 @@ const Availability = () => {
             disabled={gcalImporting}
           >
             {gcalImporting ? 'Importing...' : 'Import from Google Calendar'}
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={handleGCalExport}
+            disabled={gcalExporting || slots.length === 0}
+          >
+            {gcalExporting ? 'Exporting...' : 'Export to Google Calendar'}
           </button>
         </div>
       </section>
