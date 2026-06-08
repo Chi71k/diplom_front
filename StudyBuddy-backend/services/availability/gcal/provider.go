@@ -21,3 +21,8 @@ func (p *CalendarProvider) UpsertSessionEvent(ctx context.Context, conn *domain.
 func (p *CalendarProvider) DeleteSessionEvent(ctx context.Context, conn *domain.GCalConnection, eventID string) error {
 	return DeleteSessionEvent(p.Provider, ctx, conn, eventID)
 }
+
+// ExportSlots implements usecase.GCalProvider.
+func (p *CalendarProvider) ExportSlots(ctx context.Context, conn *domain.GCalConnection, slots []domain.Slot) (int, error) {
+	return ExportSlotEvents(p.Provider, ctx, conn, slots)
+}

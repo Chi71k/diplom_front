@@ -264,6 +264,15 @@ export async function apiImportGCal() {
   return handleResponse(res)
 }
 
+export async function apiExportSlotsToGCal() {
+  const res = await apiFetch(`${API_BASE}/api/v1/availability/gcal/export-slots`, {
+    method: 'POST',
+    headers: authHeaders(),
+    credentials: 'include',
+  })
+  return handleResponse(res)
+}
+
 export async function apiDisconnectGCal(deleteSlots = false) {
   const res = await apiFetch(`${API_BASE}/api/v1/availability/gcal/disconnect`, {
     method: 'DELETE',

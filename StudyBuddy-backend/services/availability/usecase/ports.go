@@ -46,6 +46,8 @@ type GCalProvider interface {
 	UpsertSessionEvent(ctx context.Context, conn *domain.GCalConnection, session *domain.Session, userID string) (string, error)
 	// DeleteSessionEvent deletes a previously created event by its Google Calendar event ID.
 	DeleteSessionEvent(ctx context.Context, conn *domain.GCalConnection, eventID string) error
+	// ExportSlots creates recurring weekly Google Calendar events for each availability slot.
+	ExportSlots(ctx context.Context, conn *domain.GCalConnection, slots []domain.Slot) (int, error)
 }
 
 // SessionRepository persists study sessions and participants.

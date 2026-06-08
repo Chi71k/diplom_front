@@ -26,6 +26,7 @@ type AvailabilityHandler struct {
 	GCalConnect         usecase.GCalConnect
 	GCalImport          usecase.GCalImport
 	GCalDisconnect      usecase.GCalDisconnect
+	GCalExportSlots     usecase.GCalExportSlots
 	ProposeSession      usecase.ProposeSession
 	ConfirmSession      usecase.ConfirmSession
 	CancelSession       usecase.CancelSession
@@ -319,6 +320,36 @@ func (h *AvailabilityHandler) HandleGCalDisconnect(w http.ResponseWriter, r *htt
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// ── gcal export slots: POST /api/v1/availability/gcal/export-slots ────────────
+
+// HandleGCalExportSlots POST /api/v1/availability/gcal/export-slots
+// Exports the user's availability slots as recurring weekly events to Google Calendar.
+func (h *AvailabilityHandler) HandleGCalExportSlots(w http.ResponseWriter, r *http.Request) {
+	userID := auth.UserIDFromContext(r.Context())
+	if userID == "" {
+		httputil.Error(w, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	count, err := h.GCalExportSlots.ExportSlotsToGCal(r.Context(), userID)
+	if err != nil {
+		switch {
+		case errors.Is(err, domain.ErrGCalNotConnected):
+			httputil.Error(w, http.StatusPreconditionRequired, "google calendar is not connected — call /gcal/connect first")
+		case errors.Is(err, domain.ErrGCalSyncDisabled):
+			httputil.Error(w, http.StatusForbidden, "google calendar sync is disabled for your account")
+		case errors.Is(err, domain.ErrGCalRefreshFailed):
+			httputil.Error(w, http.StatusServiceUnavailable, "google calendar token refresh failed")
+		default:
+			log.Printf("HandleGCalExportSlots: %v", err)
+			httputil.Error(w, http.StatusInternalServerError, "failed to export slots to google calendar")
+		}
+		return
+	}
+
+	httputil.JSON(w, http.StatusOK, map[string]any{"exported": count})
 }
 
 // ── study sessions ───────────────────────────────────────────────────────────
