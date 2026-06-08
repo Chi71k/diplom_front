@@ -17,7 +17,6 @@ export default function UserProfile() {
   const [reviews, setReviews] = useState([])
   const [courses, setCourses] = useState([])
   const [loading, setLoading] = useState(true)
-  const [copied,  setCopied]  = useState(false)
 
   const isMe = profile?.id === id
 
@@ -50,17 +49,6 @@ export default function UserProfile() {
     }
     load()
   }, [id])
-
-  const copyId = async () => {
-    try {
-      await navigator.clipboard.writeText(id)
-      setCopied(true)
-      toast.success('User ID copied!')
-      setTimeout(() => setCopied(false), 2000)
-    } catch {
-      toast.error('Copy failed')
-    }
-  }
 
   if (loading) return <div className="loading-state" style={{ marginTop: 40 }}>Loading profile…</div>
 
@@ -160,31 +148,6 @@ export default function UserProfile() {
               {user.bio}
             </div>
           )}
-
-          <div style={{
-            marginTop: 16,
-            padding: '12px 14px',
-            background: 'var(--bg)',
-            borderRadius: 10,
-            border: '1px solid var(--border)',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
-          }}>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 3 }}>
-                User ID
-              </div>
-              <div style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--text)', wordBreak: 'break-all' }}>
-                {id}
-              </div>
-            </div>
-            <button
-              className={`btn btn-sm ${copied ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ flexShrink: 0 }}
-              onClick={copyId}
-            >
-              {copied ? '✓ Copied' : 'Copy ID'}
-            </button>
-          </div>
         </div>
       </div>
 
