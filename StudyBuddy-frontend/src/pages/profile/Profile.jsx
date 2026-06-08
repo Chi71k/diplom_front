@@ -20,16 +20,6 @@ const Profile = () => {
   const [saving, setSaving] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState(false)
   const [avatarError, setAvatarError] = useState(false)
-  const [idCopied, setIdCopied] = useState(false)
-
-  const copyMyId = async () => {
-    try {
-      await navigator.clipboard.writeText(profile.id)
-      setIdCopied(true)
-      toast.success('Your ID copied!')
-      setTimeout(() => setIdCopied(false), 2000)
-    } catch { toast.error('Copy failed') }
-  }
   const [interests, setInterests] = useState([])
   const [myCourses, setMyCourses] = useState([])
   const [courseCount, setCourseCount] = useState(null)
@@ -181,30 +171,6 @@ const Profile = () => {
             {profile.bio}
           </div>
         )}
-
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          gap: 12, margin: '12px 0 4px',
-          padding: '10px 14px', borderRadius: 10,
-          background: 'var(--bg)', border: '1px solid var(--border)',
-        }}>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 2 }}>
-              My ID
-            </div>
-            <div style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--text)', wordBreak: 'break-all' }}>
-              {profile.id}
-            </div>
-          </div>
-          <button
-            type="button"
-            className={`btn btn-sm ${idCopied ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ flexShrink: 0 }}
-            onClick={copyMyId}
-          >
-            {idCopied ? '✓ Copied' : 'Copy ID'}
-          </button>
-        </div>
 
         <div className="profile-stats-row">
           <Link to="/interests" className="profile-stat">
